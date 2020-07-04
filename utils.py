@@ -1,10 +1,11 @@
+# This is for some tools for models
+
 import csv
 import sys
 import os
 import pysmiles
-
-data_train_path = "data/train.csv"
-data_test_path = "data/test.csv"
+from rdkit import Chem
+from rdkit.Chem import Draw
 
 
 # get a path
@@ -38,21 +39,25 @@ def train_test_path(num=10):
     return train_path, test_path , dev_path
 
 # to read data
-def read_data_smiles(num=10):
+def read_data_smiles(num=10, choice=0):
+    # choice = 0,1,2
     train_path, test_path, dev_path = train_test_path(num)
-    train_csv = OpenCSV(train_path)
+    path = train_path
+    if choice == 1:
+        path = test_path
+    elif choice == 2:
+        path = dev_path
+
+    f_csv = OpenCSV(path)
+    dataset = [row[1] for row in f_csv]
+    labels = [row[2] for row in f_csv]
+
+    return dataset, labels
 
 
 
-    
+dataset, labels = read_data_smiles()
 
-
-train_path, test_path, dev_path = train_test_path()
-f_csv = OpenCSV(train_path)
-# id,smiles,activity
-SMILES_list = [row[1] for row in f_csv]
-
-
-SMILES = SMILES_list[1]
-m = pysmiles.read_smiles(SMILES)
-print(m.nodes(data = 'element'))
+temp = dataset[1]
+m = Chem.MolFromSmiles(temp)
+Draw.MolToImageFile(m, GetPath("mol.jpg"))
