@@ -42,17 +42,16 @@ def read_data_smiles(num=10):
     train_path, test_path, dev_path = train_test_path(num)
     train_csv = OpenCSV(train_path)
 
+def read_from_pysmiles(num=10):
+    train_path, test_path, dev_path = train_test_path(num)
+    f_csv = OpenCSV(train_path)
+    # id,smiles,activity
+    if num == 10:
+        SMILES_list = [row[1] for row in f_csv]
+    else:
+        SMILES_list = [row[0] for row in f_csv]
 
-
-    
-
-
-train_path, test_path, dev_path = train_test_path()
-f_csv = OpenCSV(train_path)
-# id,smiles,activity
-SMILES_list = [row[1] for row in f_csv]
-
-
-SMILES = SMILES_list[1]
-m = pysmiles.read_smiles(SMILES)
-print(m.nodes(data = 'element'))
+    SMILES = SMILES_list[1]
+    print(SMILES)
+    m = pysmiles.read_smiles(SMILES)
+    print(m.nodes(data = 'element'))
