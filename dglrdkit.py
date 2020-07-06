@@ -183,6 +183,7 @@ def train_one(num, model, loss_fn, optimizer, show=False,show_acc=False):
             # print(pred_y)
             tot_pos_ps = [pred_cls[i][true_label[i]] for i in range(len(true_label))]
             epoch_tot_pos_ps.extend(tot_pos_ps)
+            t = i
 
         epoch_loss /= (t + 1)
         roc_auc = roc_auc_score(train_y, epoch_tot_pos_ps)
@@ -194,25 +195,36 @@ def train_one(num, model, loss_fn, optimizer, show=False,show_acc=False):
 
         # evaluate
         model.eval()
-        with torch.no_grad():
-            pred_y = []
-            test, y = collate(test_data)
-            atom_feats = test.ndata.pop('h').to(device)
-            pred_y = model(test, atom_feats)
+        test_tot_pos_ps = []
+        t = 0
+        for i, (bg, labels) in enumerate(test_loader):
+            with torch.no_grad():
+                labels = labels.to(device)
+                atom_feats = bg.ndata.pop('h').to(device)
+                atom_feats, labels = atom_feats.to(device), labels.to(device)
+                pred = model(bg, atom_feats)
+                # print(pred)
 
-            # test loss
-            test_loss = loss_fn(pred_y, y.to(device))
-            true_label = y
-            pred_y = pred_y.detach().to('cpu').numpy()
-            pred_y = softmax(pred_y)
-            tot_pos_ps = [pred_y[i][true_label[i]] for i in range(len(true_label))]
-            roc_auc = roc_auc_score(true_label,tot_pos_ps)
-            p,r,thr = precision_recall_curve(true_label,tot_pos_ps)
-            prc_auc = auc(r,p)
-            # print(prc_auc)
+                # 损失函数回传
+                loss = loss_fn(pred, labels)
+                test_loss += loss.item()
 
-            test_roc_auc = roc_auc
-            test_prc_auc = prc_auc
+                # 准确率
+                pred_cls = pred.to('cpu').numpy()
+                pred_cls = softmax(pred_cls)
+                # print(pred_cls)
+                true_label = labels.to('cpu').numpy()
+                tot_pos_ps = [pred_cls[i][true_label[i]] for i in range(len(true_label))]
+                test_tot_pos_ps.extend(tot_pos_ps)
+                t = i
+
+        test_loss /= (t + 1)
+        roc_auc = roc_auc_score(test_y, test_tot_pos_ps)
+        p,r,thr = precision_recall_curve(test_y, test_tot_pos_ps)
+        prc_auc = auc(r,p)
+
+        test_roc_auc = roc_auc
+        test_prc_auc = prc_auc
 
         if epoch % 20 == 0 and show_acc:
             print(f"epoch: {epoch}")
