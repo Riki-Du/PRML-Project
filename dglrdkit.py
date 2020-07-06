@@ -7,6 +7,7 @@ import numpy as np
 import csv
 import torch
 import dgl
+import matplotlib.pyplot as plt
 if torch.cuda.is_available():
     print('use GPU')
     device='cuda'
@@ -86,6 +87,7 @@ def read_from_rdkit(num, choice):
     return sm, labels
 
 def data_read(num): 
+    print("Loading dataset ",num)
     trainmols, train_y = read_from_rdkit(num,0)
     testmols, test_y = read_from_rdkit(num,1)
     train_g = [smiles_to_complete_graph(m, add_self_loop=False, node_featurizer=atom_featurizer) for m in trainmols]
@@ -115,38 +117,11 @@ print(n_feats)
 # 二分类任务
 ncls = 2
 
-#%%
-# define GCN NET with 2 GCN layers
-gcn_net = GCNPredictor(in_feats=n_feats,
-                    hidden_feats=[60,20],
-                    n_tasks=ncls,
-                    classifier_hidden_feats=10,
-                    dropout=[0.5,0.5],)
-gcn_net = gcn_net.to(device)
-loss_fn = CrossEntropyLoss()
-optimizer = torch.optim.Adam(gcn_net.parameters(), lr=1E-2)
-
-train_g, train_y, test_g, test_y = data_read(0)
-train_data = list(zip(train_g, train_y))
-# import numpy as np
-# np.set_printoptions(threshold=np.inf)
-# print(train_y)
-train_loader = DataLoader(train_data, batch_size=128,shuffle=True,collate_fn=collate, drop_last=False)
-test_data = list(zip(test_g, test_y))
-test_loader = DataLoader(test_data, batch_size=128,shuffle=True,collate_fn=collate, drop_last=False)
-
-gcn_net.train()
 
 #%%
 from sklearn.metrics import accuracy_score
 from sklearn.metrics import roc_auc_score,precision_recall_curve,auc
-epoch_losses = []
-epoch_roc_accuracies = []
-epoch_prc_accuracies = []
-test_losses = []
-test_roc_accuracies = []
-test_prc_accuracies = []
-e = 201
+
 
 def softmax(x):
     x_exp = np.exp(x)
@@ -155,109 +130,151 @@ def softmax(x):
     s = x_exp / x_sum    
     return s
 
-for epoch in range(1,e):
-    # train
-    gcn_net.train()
-    epoch_loss = 0
-    test_loss = 0
-    epoch_roc_auc = 0
-    test_roc_auc = 0
-    epoch_prc_auc = 0
-    test_prc_auc = 0
 
-    t = 0
-    epoch_tot_pos_ps = []
-    for i, (bg, labels) in enumerate(train_loader):
-        labels = labels.to(device)
-        atom_feats = bg.ndata.pop('h').to(device)
-        atom_feats, labels = atom_feats.to(device), labels.to(device)
-        pred = gcn_net(bg, atom_feats)
-        # print(pred)
+def train_one(num, model, loss_fn, optimizer, show=False,show_acc=False):
+    train_g, train_y, test_g, test_y = data_read(num)
+    train_data = list(zip(train_g, train_y))
+    train_loader = DataLoader(train_data, batch_size=128,shuffle=True,collate_fn=collate, drop_last=False)
+    test_data = list(zip(test_g, test_y))
+    test_loader = DataLoader(test_data, batch_size=128,shuffle=True,collate_fn=collate, drop_last=False)
+    model.train()
 
-        # 损失函数回传
-        loss = loss_fn(pred, labels)
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
-        epoch_loss += loss.detach().item()
+    # 训练过程
+    print("Training")
+    epoch_losses = []
+    epoch_roc_accuracies = []
+    epoch_prc_accuracies = []
+    test_losses = []
+    test_roc_accuracies = []
+    test_prc_accuracies = []
+    e = 101
+    for epoch in range(1,e):
+        # train
+        model.train()
+        epoch_loss = 0
+        test_loss = 0
+        epoch_roc_auc = 0
+        test_roc_auc = 0
+        epoch_prc_auc = 0
+        test_prc_auc = 0
 
-        # 准确率
-        pred_cls = pred.detach().to('cpu').numpy()
-        pred_cls = softmax(pred_cls)
-        # print(pred_cls)
-        true_label = labels.to('cpu').numpy()
-        # print(true_label)
-        # print(pred_y)
-        tot_pos_ps = [pred_cls[i][true_label[i]] for i in range(len(true_label))]
-        epoch_tot_pos_ps.extend(tot_pos_ps)
+        t = 0
+        epoch_tot_pos_ps = []
+        for i, (bg, labels) in enumerate(train_loader):
+            labels = labels.to(device)
+            atom_feats = bg.ndata.pop('h').to(device)
+            atom_feats, labels = atom_feats.to(device), labels.to(device)
+            pred = model(bg, atom_feats)
+            # print(pred)
 
-    epoch_loss /= (t + 1)
-    roc_auc = roc_auc_score(train_y, epoch_tot_pos_ps)
-    p,r,thr = precision_recall_curve(train_y, epoch_tot_pos_ps)
-    prc_auc = auc(r,p)
+            # 损失函数回传
+            loss = loss_fn(pred, labels)
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+            epoch_loss += loss.detach().item()
 
-    epoch_roc_auc = roc_auc
-    epoch_prc_auc = prc_auc
+            # 准确率
+            pred_cls = pred.detach().to('cpu').numpy()
+            pred_cls = softmax(pred_cls)
+            # print(pred_cls)
+            true_label = labels.to('cpu').numpy()
+            # print(true_label)
+            # print(pred_y)
+            tot_pos_ps = [pred_cls[i][true_label[i]] for i in range(len(true_label))]
+            epoch_tot_pos_ps.extend(tot_pos_ps)
 
-    # evaluate
-    gcn_net.eval()
-    with torch.no_grad():
-        pred_y = []
-        test, y = collate(test_data)
-        atom_feats = test.ndata.pop('h').to(device)
-        pred_y = gcn_net(test, atom_feats)
-
-        # test loss
-        test_loss = loss_fn(pred_y, y.to(device))
-        true_label = y
-        pred_y = pred_y.detach().to('cpu').numpy()
-        pred_y = softmax(pred_y)
-        tot_pos_ps = [pred_y[i][true_label[i]] for i in range(len(true_label))]
-        roc_auc = roc_auc_score(true_label,tot_pos_ps)
-        p,r,thr = precision_recall_curve(true_label,tot_pos_ps)
+        epoch_loss /= (t + 1)
+        roc_auc = roc_auc_score(train_y, epoch_tot_pos_ps)
+        p,r,thr = precision_recall_curve(train_y, epoch_tot_pos_ps)
         prc_auc = auc(r,p)
-        # print(prc_auc)
 
-        test_roc_auc = roc_auc
-        test_prc_auc = prc_auc
+        epoch_roc_auc = roc_auc
+        epoch_prc_auc = prc_auc
 
-    if epoch % 20 == 0:
-        print(f"epoch: {epoch}")
-        print(f"Training loss: {epoch_loss:.3f}, roc_auc: {epoch_roc_auc:.3f},  prc_auc: {epoch_prc_auc:.3f}")
-        print(f"Test loss: {test_loss:.3f}, roc_auc: {test_roc_auc:.3f},  prc_auc: {test_prc_auc:.3f}")
-    epoch_roc_accuracies.append(epoch_roc_auc)
-    epoch_prc_accuracies.append(epoch_prc_auc)
-    epoch_losses.append(epoch_loss)
-    test_roc_accuracies.append(test_roc_auc)
-    test_prc_accuracies.append(test_prc_auc)
-    test_losses.append(test_loss)
+        # evaluate
+        model.eval()
+        with torch.no_grad():
+            pred_y = []
+            test, y = collate(test_data)
+            atom_feats = test.ndata.pop('h').to(device)
+            pred_y = model(test, atom_feats)
+
+            # test loss
+            test_loss = loss_fn(pred_y, y.to(device))
+            true_label = y
+            pred_y = pred_y.detach().to('cpu').numpy()
+            pred_y = softmax(pred_y)
+            tot_pos_ps = [pred_y[i][true_label[i]] for i in range(len(true_label))]
+            roc_auc = roc_auc_score(true_label,tot_pos_ps)
+            p,r,thr = precision_recall_curve(true_label,tot_pos_ps)
+            prc_auc = auc(r,p)
+            # print(prc_auc)
+
+            test_roc_auc = roc_auc
+            test_prc_auc = prc_auc
+
+        if epoch % 20 == 0 and show_acc:
+            print(f"epoch: {epoch}")
+            print(f"Training loss: {epoch_loss:.3f}, roc_auc: {epoch_roc_auc:.3f},  prc_auc: {epoch_prc_auc:.3f}")
+            print(f"Test loss: {test_loss:.3f}, roc_auc: {test_roc_auc:.3f},  prc_auc: {test_prc_auc:.3f}")
+        epoch_roc_accuracies.append(epoch_roc_auc)
+        epoch_prc_accuracies.append(epoch_prc_auc)
+        epoch_losses.append(epoch_loss)
+        test_roc_accuracies.append(test_roc_auc)
+        test_prc_accuracies.append(test_prc_auc)
+        test_losses.append(test_loss)
+
+    # 显示出来
+    if show:
+        plt.subplot(211)
+        # plt.style.use('ggplot')
+        plt.plot([i for i in range(1, e)], epoch_losses, c='b', alpha=0.6, label='train_loss')
+        plt.legend()
+        plt.plot([i for i in range(1, e)], test_losses, c='r', alpha=0.6, label='test_loss')
+        plt.legend()
+        plt.xlabel('epoch')
+        plt.ylabel('loss')
+
+        plt.subplot(212)
+        # plt.style.use('ggplot')
+        plt.plot([i for i in range(1, e)], epoch_roc_accuracies, c='b', alpha=0.6, label='training_roc_auc')
+        plt.legend()
+        plt.plot([i for i in range(1, e)], test_roc_accuracies, c='r', alpha=0.6, label='test_roc_auc')
+        plt.legend()
+        plt.plot([i for i in range(1, e)], epoch_prc_accuracies, c='g', alpha=0.6, label='traininig_prc_auc')
+        plt.legend()
+        plt.plot([i for i in range(1, e)], test_prc_accuracies, c='c', alpha=0.6, label='test_prc_auc')
+        plt.legend()
+        plt.xlabel('epoch')
+        plt.ylabel('acc')
+        plt.show()
+
+    train_roc_auc = epoch_roc_accuracies[-1]
+    test_roc_auc = test_roc_accuracies[-1]
+    train_prc_auc = epoch_prc_accuracies[-1]
+    test_prc_auc = test_prc_accuracies[-1]
+    print("Dataset ",num)
+    print(f"Train set, roc_auc: {train_roc_auc:.3f},  prc_auc: {train_prc_auc:.3f}")
+    print(f"Test set, roc_auc: {test_roc_auc:.3f},  prc_auc: {test_prc_auc:.3f}")
+    return train_roc_auc,test_roc_auc,train_prc_auc,test_prc_auc
+    
+
 
 #%%
+# define GCN NET with 2 GCN layers
+model = GCNPredictor(in_feats=n_feats,
+                    hidden_feats=[60,20],
+                    n_tasks=ncls,
+                    classifier_hidden_feats=10,
+                    dropout=[0.5,0.5],)
+model = model.to(device)
+loss_fn = CrossEntropyLoss()
+optimizer = torch.optim.Adam(model.parameters(), lr=1E-2)
 
-# %matplotlib inline
-import matplotlib.pyplot as plt
-plt.subplot(211)
-# plt.style.use('ggplot')
-plt.plot([i for i in range(1, e)], epoch_losses, c='b', alpha=0.6, label='train_loss')
-plt.legend()
-plt.plot([i for i in range(1, e)], test_losses, c='r', alpha=0.6, label='test_loss')
-plt.legend()
-plt.xlabel('epoch')
-plt.ylabel('loss')
+train_roc_auc,test_roc_auc,train_prc_auc,test_prc_auc = train_one(0, model, loss_fn, optimizer,show_acc=True)
 
-plt.subplot(212)
-# plt.style.use('ggplot')
-plt.plot([i for i in range(1, e)], epoch_roc_accuracies, c='b', alpha=0.6, label='training_roc_auc')
-plt.legend()
-plt.plot([i for i in range(1, e)], test_roc_accuracies, c='r', alpha=0.6, label='test_roc_auc')
-plt.legend()
-plt.plot([i for i in range(1, e)], epoch_prc_accuracies, c='g', alpha=0.6, label='traininig_prc_auc')
-plt.legend()
-plt.plot([i for i in range(1, e)], test_prc_accuracies, c='c', alpha=0.6, label='test_prc_auc')
-plt.legend()
-plt.xlabel('epoch')
-plt.ylabel('acc')
-plt.show()
+
 
 #%%
 from sklearn.metrics import accuracy_score
@@ -265,11 +282,11 @@ from sklearn.metrics import classification_report
 from sklearn.metrics import confusion_matrix
 
 
-gcn_net.eval()
+model.eval()
 pred_y = []
 test, y = collate(test_data)
 atom_feats = test.ndata.pop('h').to(device)
-pred_y = gcn_net(test, atom_feats)
+pred_y = model(test, atom_feats)
 
 pred_y = pred_y.detach().to('cpu').numpy()
 pred_y = softmax(pred_y)
