@@ -44,18 +44,18 @@ def read_data_smiles(num=10):
     train_csv = OpenCSV(train_path)
 
 
-def ream_from_rdkit(num=10):
-
+def read_from_rdkit(num=10):
     train_path, test_path, dev_path = train_test_path(num)
     f_csv = OpenCSV(train_path)
-
-
-    # id,smiles,activity
     if num == 10:
-        SMILES_list = [row[1] for row in f_csv]
+        # id,smiles,activity
+        SMILES_list = [(row[1],row[2]) for row in f_csv]
     else:
-        SMILES_list = [row[0] for row in f_csv]
+        # smiles,activity
+        SMILES_list = [(row[0],row[1]) for row in f_csv]
     SMILES = SMILES_list[1]
+    print("Test for rdkit!")
     print(SMILES)
-    m = Chem.MolFromSmiles(SMILES)
-    Draw.MolToImageFile(m, GetPath("mol.jpg"))
+    return SMILES_list[1:]
+
+    # Draw.MolToImageFile(m, GetPath("mol.jpg"))
