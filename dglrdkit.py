@@ -115,6 +115,7 @@ print(n_feats)
 # 二分类任务
 ncls = 2
 
+#%%
 # define GCN NET with 2 GCN layers
 gcn_net = GCNPredictor(in_feats=n_feats,
                     hidden_feats=[60,20],
@@ -160,18 +161,23 @@ for epoch in range(1,e):
     epoch_acc = 0
     test_acc = 0
     t = 0
+
+    epoch_tot_pos_ps = []
     for i, (bg, labels) in enumerate(train_loader):
         labels = labels.to(device)
         atom_feats = bg.ndata.pop('h').to(device)
         atom_feats, labels = atom_feats.to(device), labels.to(device)
         pred = gcn_net(bg, atom_feats)
         # print(pred)
+
+        # 损失函数回传
         loss = loss_fn(pred, labels)
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
         epoch_loss += loss.detach().item()
 
+        # 准确率
         pred_cls = pred.detach().to('cpu').numpy()
         pred_cls = softmax(pred_cls)
         # print(pred_cls)
@@ -179,12 +185,13 @@ for epoch in range(1,e):
         # print(true_label)
         # print(pred_y)
         tot_pos_ps = [pred_cls[i][true_label[i]] for i in range(len(true_label))]
+        epoch_tot_pos_ps.extend(tot_pos_ps)
 
-        
-        epoch_acc += 0
-        t = i
-    epoch_acc /= (t + 1)
     epoch_loss /= (t + 1)
+    roc_auc = roc_auc_score(train_y, epoch_tot_pos_ps)
+    p,r,thr = precision_recall_curve(train_y, epoch_tot_pos_ps)
+    prc_auc = auc(r,p)
+    epoch_acc = prc_auc
 
     # evaluate
     gcn_net.eval()
@@ -192,17 +199,18 @@ for epoch in range(1,e):
     test, y = collate(test_data)
     atom_feats = test.ndata.pop('h').to(device)
     pred_y = gcn_net(test, atom_feats)
-    test_loss = loss_fn(pred_y, y) /len(pred_y)
 
+    # test loss
+    test_loss = loss_fn(pred_y, y.to(device))
     true_label = y
     pred_y = pred_y.detach().to('cpu').numpy()
     pred_y = softmax(pred_y)
     tot_pos_ps = [pred_y[i][true_label[i]] for i in range(len(true_label))]
-
     roc_auc = roc_auc_score(true_label,tot_pos_ps)
     p,r,thr = precision_recall_curve(true_label,tot_pos_ps)
     prc_auc = auc(r,p)
-    print(prc_auc)
+    # print(prc_auc)
+    test_acc = prc_auc
 
     # print(pred_y)
     # print(np.sum(pred_y))
