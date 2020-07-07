@@ -9,6 +9,8 @@ import torch
 from dgllife.utils import smiles_to_complete_graph,smiles_to_bigraph
 from dgllife.utils import CanonicalAtomFeaturizer
 from dgllife.utils import CanonicalBondFeaturizer
+from sklearn.preprocessing import LabelEncoder    #用于Label编码
+from sklearn.preprocessing import OneHotEncoder     #用于one-hot编码
 
 # get a path
 def GetPath(file):
@@ -72,11 +74,16 @@ def load_data(num):
     trainmols, train_y = read_from_rdkit(num,0)
     testmols, test_y = read_from_rdkit(num,1)
     train_g = [smiles_to_bigraph(m, add_self_loop=False, node_featurizer=atom_featurizer,edge_featurizer=bond_featurizer) for m in trainmols]
+    
     train_y = np.array(train_y, dtype=np.int64)
+    train_y = OneHotEncoder(sparse=False).fit(train_y.reshape(-1,1)).transform(train_y.reshape(-1,1))
+    train_y = np.array(train_y, dtype=np.float32)
     print("Training set ",len(train_g))
     
     test_g = [smiles_to_bigraph(m, add_self_loop=False, node_featurizer=atom_featurizer,edge_featurizer=bond_featurizer) for m in testmols]
     test_y = np.array(test_y, dtype=np.int64)
+    test_y = OneHotEncoder(sparse=False).fit(test_y.reshape(-1,1)).transform(test_y.reshape(-1,1))
+    test_y = np.array(test_y, dtype=np.float32)
     print("Test set",len(test_g))
     print("Data loaded.")
 
@@ -123,12 +130,10 @@ def load_model(args):
 
     if args['model'] == 'MPNN':
         from dgllife.model import MPNNPredictor
-        atom_featurizer = CanonicalAtomFeaturizer()
-        bond_featurizer = CanonicalBondFeaturizer()
-        n_feats = atom_featurizer.feat_size()
-        e_feats = bond_featurizer.feat_size()
-        model = MPNNPredictor(node_in_feats = n_feats,
-                              edge_in_feats = e_feats,
-                              n_tasks=1)
+        model = MPNNPredictor(node_in_feats=args['node_in_feats'],
+                              edge_in_feats=args['edge_in_feats'],
+                              node_out_feats=args['node_out_feats'],
+                              edge_hidden_feats=args['edge_hidden_feats'],
+                              n_tasks=args['n_tasks'])
 
     return model
