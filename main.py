@@ -30,7 +30,8 @@ def run_a_train_epoch(args, epoch, model, data_loader,
         bg, labels = batch_data
         labels = labels.to(args['device'])
         prediction = regress(args, model, bg)
-        loss = (loss_criterion(prediction, labels)).mean()
+        # print(prediction.dtype,labels.dtype)
+        loss = (loss_criterion(prediction, labels.float())).mean()
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
@@ -105,6 +106,7 @@ if __name__ == "__main__":
     args['exp'] = '_'.join([args['model'], args['dataset']])
     #print(args)
     args.update(get_exp_configure(args['exp']))
+    args["batch_size"] = 128
     #print(args)
 
     main(args)

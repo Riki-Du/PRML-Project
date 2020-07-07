@@ -172,7 +172,7 @@ def train_one(num, model, loss_fn, optimizer, show=False,show_acc=False,EDGE=Fal
     test_losses = []
     test_roc_accuracies = []
     test_prc_accuracies = []
-    e = 101
+    e = 201
     for epoch in range(1,e):
         # train
         model.train()
@@ -202,7 +202,7 @@ def train_one(num, model, loss_fn, optimizer, show=False,show_acc=False,EDGE=Fal
             # pred = pred.reshape(-1)
             # print(pred.shape,labels.shape)
             
-            loss = loss_fn(pred, labels)
+            loss = loss_fn(pred, labels.float()).mean()
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
@@ -215,7 +215,8 @@ def train_one(num, model, loss_fn, optimizer, show=False,show_acc=False,EDGE=Fal
             true_label = labels.to('cpu').numpy()
             # print(true_label)
             # print(pred_y)
-            tot_pos_ps = [pred_cls[i][true_label[i]] for i in range(len(true_label))]
+            tot_pos_ps = [pred_cls[i] for i in range(len(true_label))]
+            # tot_pos_ps = [pred_cls[i][true_label[i]] for i in range(len(true_label))]
             epoch_tot_pos_ps.extend(tot_pos_ps)
             t = i
 
@@ -247,7 +248,7 @@ def train_one(num, model, loss_fn, optimizer, show=False,show_acc=False,EDGE=Fal
                 # print(pred)
 
                 # 损失函数回传
-                loss = loss_fn(pred, labels)
+                loss = loss_fn(pred, labels.float()).mean()
                 test_loss += loss.item()
 
                 # 准确率
@@ -255,7 +256,8 @@ def train_one(num, model, loss_fn, optimizer, show=False,show_acc=False,EDGE=Fal
                 pred_cls = softmax(pred_cls)
                 # print(pred_cls)
                 true_label = labels.to('cpu').numpy()
-                tot_pos_ps = [pred_cls[i][true_label[i]] for i in range(len(true_label))]
+                tot_pos_ps = [pred_cls[i] for i in range(len(true_label))]
+                # tot_pos_ps = [pred_cls[i][true_label[i]] for i in range(len(true_label))]
                 test_tot_pos_ps.extend(tot_pos_ps)
                 t = i
 
@@ -348,13 +350,13 @@ model = MPNNPredictor(
                  edge_in_feats = e_feats,
                  node_out_feats=64,
                  edge_hidden_feats=128,
-                 n_tasks=ncls,
+                 n_tasks=1,
                  num_step_message_passing=6,
                  num_step_set2set=6,
                  num_layer_set2set=3)
 model = model.to(device)
-# loss_fn = nn.MSELoss(reduction='none')
-loss_fn = CrossEntropyLoss()
+loss_fn = nn.MSELoss(reduction='none')
+# loss_fn = CrossEntropyLoss()
 optimizer = torch.optim.Adam(model.parameters(), lr=10 ** (-2.5), weight_decay=10 ** (-5.0),)
 
 train_roc_auc,test_roc_auc,train_prc_auc,test_prc_auc = train_one(0, model, loss_fn, optimizer,show_acc=True,EDGE=True)
