@@ -1,4 +1,4 @@
-# 模式识别与机器学习 Project - AI Cures
+# 模式识别与机器学习 Project - [AI Cures](https://www.aicures.mit.edu/)
 
 杜逸闲
 
@@ -6,7 +6,7 @@
 
 ## 问题描述
 
-给出若干种化合物的SMILES表示，要求判断其是否对Covid-19具有活性。
+给出若干种化合物的SMILES表示，要求判断其是否对Covid-19具有抗性，输出为0或者1，是一个2分类问题。
 
 ### 化合物的SMILES表示
 
@@ -47,3 +47,41 @@ SMILES (implified molecular input line entry specification), 是一种用ASCII�
 9. 乙酸乙酯：CC(=O)OCC 
     
    ![乙酸乙酯](乙酸乙酯.jpg)
+
+### 数据集获取
+
+在[官方论坛](https://www.aicures.mit.edu/forum/_data)填写自己的姓名和邮箱可以获取到数据本次Benchmark的数据，也可以在[数据页面](https://www.aicures.mit.edu/data)下载其他数据集。
+
+## 评价标准
+
+了解数据评价标准可以帮助我们更好的评价自己的模型。该任务的评价标准有四个，见[Task页面](https://www.aicures.mit.edu/tasks)下的排名. 
+
+![评价标准](评价标准.png)
+
+### 交叉验证
+
+由于该数据集的规模较小，为了防止过拟合，数据集将被平分为10份。每次训练我们选取其中的9份作为训练集，剩下的1份作为验证集。上图的10-fold CV (cross validation)前缀就代表交叉验证。
+
+### ROC-AUC && PRC-AUC
+
+对于交叉验证和总测试集，我们都有两个指标，ROC-AUC和PRC-AUC, 他们均能一定程度上反应分类器的性能，但在本项目中PRC-AUC会用作分类器排序的第一参数。我们将分别介绍ROC-AUC和PRC-AUC并分析为何PRC-AUC在此项目中更为重要。
+
+在一个二分类任务中，对于一个分类器的预测结果，我们有如下的定义：
+
+1. $TP$, True Positive为真正例（测试集标记为正，分类器预测为正）的数量。
+2. $FP$, False Positive为假正例（测试集标记为负，而分类器预测为正）的数量。
+3. $FN$, False Negative为假负例（测试集标记为正，分类器预测为负）的数量。
+4. $TN$, True Negative为真负例（测试集标记为负，分类器预测为负）的数量。
+
+在了解ROC之前，我们定义两个指标：
+
+1. 真正例率 (True Positive Rate, TPR), 表示所有正例中，预测为正例的比例： 
+   $$TPR = \frac{TP}{TP + FN}$$
+2. 假正例率 (False, Positive Rate, FPR), 表示所有负例中，预测为正例的比例：
+   $$FPR = \frac{FP}{TN + FP}$$
+
+在一个二分任务里，很多分类器输出一个实数值或者一个概率，接着设定一个阈值，当高于这个阈值时标记为正例，反之标记为负例。
+
+因此，当改变这个阈值的时候，$TPR$和$FPR$也会相应的改变。我们以$FPR$为横坐标，$TPR$为纵坐标，当阈值改变时就可以得到一系列的点（很显然这些点关于阈值的函数是“连续”的），我们将这些点连接起来平滑处理就可以得到ROC曲线了。
+
+![ROC曲线](ROC曲线.png)
