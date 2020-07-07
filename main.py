@@ -11,8 +11,8 @@ from utils import set_random_seed, collate_molgraphs, load_model, load_data
 
 def regress(args, model, bg):
     if args['model'] == 'MPNN':
-        h = bg.ndata.pop('n_feat')
-        e = bg.edata.pop('e_feat')
+        h = bg.ndata.pop('h')
+        e = bg.edata.pop('e')
         h, e = h.to(args['device']), e.to(args['device'])
         return model(bg, h, e)
     elif args['model'] in ['SchNet', 'MGCN']:

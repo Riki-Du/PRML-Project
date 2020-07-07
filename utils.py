@@ -7,6 +7,8 @@ import random
 import torch
 
 from dgllife.utils import smiles_to_complete_graph
+from dgllife.utils import CanonicalAtomFeaturizer
+from dgllife.utils import CanonicalBondFeaturizer
 
 # get a path
 def GetPath(file):
@@ -65,13 +67,15 @@ def read_from_rdkit(num, choice):
     return sm, labels
 
 def load_data(num): 
+    atom_featurizer = CanonicalAtomFeaturizer()
+    bond_featurizer = CanonicalBondFeaturizer()
     trainmols, train_y = read_from_rdkit(num,0)
     testmols, test_y = read_from_rdkit(num,1)
-    train_g = [smiles_to_complete_graph(m, add_self_loop=False) for m in trainmols]
+    train_g = [smiles_to_complete_graph(m, add_self_loop=False, node_featurizer=atom_featurizer) for m in trainmols]
     train_y = np.array(train_y, dtype=np.int64)
     print("Training set ",len(train_g))
     
-    test_g = [smiles_to_complete_graph(m, add_self_loop=False) for m in testmols]
+    test_g = [smiles_to_complete_graph(m, add_self_loop=False, node_featurizer=atom_featurizer) for m in testmols]
     test_y = np.array(test_y, dtype=np.int64)
     print("Test set",len(test_g))
     print("Data loaded.")
