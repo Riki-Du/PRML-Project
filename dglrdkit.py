@@ -6,6 +6,7 @@ from rdkit import RDPaths
 import numpy as np
 import csv
 import torch
+from functools import partial
 import dgl
 import matplotlib.pyplot as plt
 if torch.cuda.is_available():
@@ -15,12 +16,10 @@ else:
     print('use CPU')
     device='cpu'
  
-from dgllife.model import GCNPredictor
-# from dgl.data.chem.utils import mol_to_graph
-# from dgl.data.chem.utils import mol_to_complete_graph
-from dgllife.utils import smiles_to_complete_graph
-from dgllife.utils import CanonicalAtomFeaturizer
-from dgllife.utils import CanonicalBondFeaturizer
+from dgllife.model import GCNPredictor,MPNNPredictor,AttentiveFPPredictor
+from dgllife.utils import smiles_to_complete_graph,mol_to_complete_graph,smiles_to_bigraph
+from dgllife.utils import CanonicalAtomFeaturizer,WeaveAtomFeaturizer
+from dgllife.utils import CanonicalBondFeaturizer,WeaveEdgeFeaturizer,BaseBondFeaturizer
 from torch import nn
  
 import torch.nn.functional as F
@@ -90,11 +89,11 @@ def data_read(num):
     print("Loading dataset ",num)
     trainmols, train_y = read_from_rdkit(num,0)
     testmols, test_y = read_from_rdkit(num,1)
-    train_g = [smiles_to_complete_graph(m, add_self_loop=False, node_featurizer=atom_featurizer) for m in trainmols]
+    train_g = [smiles_to_bigraph(m, add_self_loop=False, node_featurizer=atom_featurizer,edge_featurizer=bond_featurizer) for m in trainmols]
     train_y = np.array(train_y, dtype=np.int64)
     print("Training set ",len(train_g))
     
-    test_g = [smiles_to_complete_graph(m, add_self_loop=False, node_featurizer=atom_featurizer) for m in testmols]
+    test_g = [smiles_to_bigraph(m, add_self_loop=False, node_featurizer=atom_featurizer,edge_featurizer=bond_featurizer) for m in testmols]
     test_y = np.array(test_y, dtype=np.int64)
     print("Test set",len(test_g))
     print("Data loaded.")
@@ -111,9 +110,34 @@ def collate(sample):
 
 atom_featurizer = CanonicalAtomFeaturizer()
 bond_featurizer = CanonicalBondFeaturizer()
+
+# def featurize_edges(mol, add_self_loop=False):
+#     feats = []
+#     num_atoms = mol.GetNumAtoms()
+#     atoms = list(mol.GetAtoms())
+#     distance_matrix = Chem.GetDistanceMatrix(mol)
+#     for i in range(num_atoms):
+#         for j in range(num_atoms):
+#             if i != j or add_self_loop:
+#                 feats.append(float(distance_matrix[i, j]))
+#     return {'e': torch.tensor(feats).reshape(-1, 1).float()}
+
+# edge_featurizer = partial(featurize_edges, add_self_loop=False)
 # check feature size
-n_feats = atom_featurizer.feat_size('h')
-print(n_feats)
+n_feats = atom_featurizer.feat_size()
+e_feats = bond_featurizer.feat_size()
+print(n_feats, e_feats)
+# bond_featurizer = BaseBondFeaturizer({'e': lambda bond: [0 for _ in range(10)]})
+
+
+
+m = 'Oc1c(I)cc(Cl)c2cccnc12'
+# m = 'CCO'
+# mol = Chem.MolFromSmiles(m)
+# num_bonds = mol.GetNumBonds()
+# print(mol,num_bonds)
+smiles_to_bigraph(m, add_self_loop=False, node_featurizer=atom_featurizer,edge_featurizer=bond_featurizer)
+# print(bond_featurizer(mol)['e'].shape)
 # 二分类任务
 ncls = 2
 
@@ -131,8 +155,9 @@ def softmax(x):
     return s
 
 
-def train_one(num, model, loss_fn, optimizer, show=False,show_acc=False):
+def train_one(num, model, loss_fn, optimizer, show=False,show_acc=False,EDGE=False):
     train_g, train_y, test_g, test_y = data_read(num)
+    # print(train_g[0].ndata,train_g[0].edata)
     train_data = list(zip(train_g, train_y))
     train_loader = DataLoader(train_data, batch_size=128,shuffle=True,collate_fn=collate, drop_last=False)
     test_data = list(zip(test_g, test_y))
@@ -164,10 +189,19 @@ def train_one(num, model, loss_fn, optimizer, show=False,show_acc=False):
             labels = labels.to(device)
             atom_feats = bg.ndata.pop('h').to(device)
             atom_feats, labels = atom_feats.to(device), labels.to(device)
-            pred = model(bg, atom_feats)
+            if EDGE:
+                edge_feats = bg.edata.pop('e').to(device)
+                edge_feats = edge_feats.to(device)
+            if EDGE:
+                pred = model(bg, atom_feats, edge_feats)
+            else:
+                pred = model(bg, atom_feats)
             # print(pred)
 
             # 损失函数回传
+            # pred = pred.reshape(-1)
+            # print(pred.shape,labels.shape)
+            
             loss = loss_fn(pred, labels)
             optimizer.zero_grad()
             loss.backward()
@@ -202,7 +236,14 @@ def train_one(num, model, loss_fn, optimizer, show=False,show_acc=False):
                 labels = labels.to(device)
                 atom_feats = bg.ndata.pop('h').to(device)
                 atom_feats, labels = atom_feats.to(device), labels.to(device)
-                pred = model(bg, atom_feats)
+                if EDGE:
+                    edge_feats = bg.edata.pop('e').to(device)
+                    # print(edge_feats.shape)
+                    edge_feats = edge_feats.to(device)
+                if EDGE:
+                    pred = model(bg, atom_feats, edge_feats)
+                else:
+                    pred = model(bg, atom_feats)
                 # print(pred)
 
                 # 损失函数回传
@@ -286,7 +327,37 @@ optimizer = torch.optim.Adam(model.parameters(), lr=1E-2)
 
 train_roc_auc,test_roc_auc,train_prc_auc,test_prc_auc = train_one(0, model, loss_fn, optimizer,show_acc=True)
 
+#%%
+# attentive FP
+model = AttentiveFPPredictor(node_feat_size=n_feats,
+                            edge_feat_size=e_feats,
+                            num_layers=2,
+                            num_timesteps=2,
+                            n_tasks=1,
+                            dropout=0.2)
+model = model.to(device)
+# loss_fn = nn.MSELoss(reduction='none')
+loss_fn = CrossEntropyLoss()
+optimizer = torch.optim.Adam(model.parameters(), lr=10 ** (-2.5), weight_decay=10 ** (-5.0),)
 
+train_roc_auc,test_roc_auc,train_prc_auc,test_prc_auc = train_one(0, model, loss_fn, optimizer,show_acc=True,EDGE=True)
+
+#%%
+model = MPNNPredictor(
+                 node_in_feats = n_feats,
+                 edge_in_feats = e_feats,
+                 node_out_feats=64,
+                 edge_hidden_feats=128,
+                 n_tasks=ncls,
+                 num_step_message_passing=6,
+                 num_step_set2set=6,
+                 num_layer_set2set=3)
+model = model.to(device)
+# loss_fn = nn.MSELoss(reduction='none')
+loss_fn = CrossEntropyLoss()
+optimizer = torch.optim.Adam(model.parameters(), lr=10 ** (-2.5), weight_decay=10 ** (-5.0),)
+
+train_roc_auc,test_roc_auc,train_prc_auc,test_prc_auc = train_one(0, model, loss_fn, optimizer,show_acc=True,EDGE=True)
 
 #%%
 from sklearn.metrics import accuracy_score
