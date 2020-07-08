@@ -24,7 +24,7 @@ SchNet_Alchemy = {
     'node_feats': 64,
     'hidden_feats': [64, 64, 64],
     'classifier_hidden_feats': 64,
-    'n_tasks': 12,
+    'n_tasks': 2,
     'lr': 0.0001,
     'patience': 50,
     'metric_name': 'roc_auc_score',
