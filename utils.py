@@ -5,12 +5,14 @@ import dgl
 import numpy as np
 import random
 import torch
-
+from functools import partial
 from dgllife.utils import smiles_to_complete_graph,smiles_to_bigraph
-from dgllife.utils import CanonicalAtomFeaturizer,WeaveAtomFeaturizer
-from dgllife.utils import CanonicalBondFeaturizer,WeaveEdgeFeaturizer
+from dgllife.utils import CanonicalAtomFeaturizer,WeaveAtomFeaturizer,atom_type_one_hot
+from dgllife.utils import CanonicalBondFeaturizer,WeaveEdgeFeaturizer,BaseAtomFeaturizer
 from sklearn.preprocessing import LabelEncoder    #用于Label编码
 from sklearn.preprocessing import OneHotEncoder     #用于one-hot编码
+from rdkit import Chem
+from rdkit import RDPaths
 
 # get a path
 def GetPath(file):
@@ -68,11 +70,46 @@ def read_from_rdkit(num, choice):
     labels = [row[1] for row in SMILES_list]
     return sm, labels
 
+def featurize_edges(mol, add_self_loop=False):
+    feats = []
+    num_atoms = mol.GetNumAtoms()
+    atoms = list(mol.GetAtoms())
+    distance_matrix = Chem.GetDistanceMatrix(mol)
+    bonds = mol.GetBonds()
+    for bond in bonds:
+        i = bond.GetBeginAtomIdx()
+        j = bond.GetEndAtomIdx()
+        feats.append(float(distance_matrix[i, j]))
+        feats.append(float(distance_matrix[i, j]))
+    return {'distance': torch.tensor(feats).reshape(-1, 1).float()}
+
+def featurize_nodes(mol, add_self_loop=False):
+    feats = []
+    num_atoms = mol.GetNumAtoms()
+    atoms = list(mol.GetAtoms())
+    for at in atoms:
+        feats.append(at.GetAtomicNum())
+    return {'node_type': torch.tensor(feats).long()}
+
+node_featurizer = partial(featurize_nodes, add_self_loop=False)
+edge_featurizer = partial(featurize_edges, add_self_loop=False)
+
 def load_data(num): 
     atom_featurizer = CanonicalAtomFeaturizer()
     bond_featurizer = CanonicalBondFeaturizer()
-    atom_featurizer = WeaveAtomFeaturizer()
-    bond_featurizer = WeaveEdgeFeaturizer()
+    # atom_featurizer = WeaveAtomFeaturizer()
+    # bond_featurizer = WeaveEdgeFeaturizer()
+    atom_featurizer = node_featurizer
+    bond_featurizer = edge_featurizer
+    
+    m = 'CCO'
+    mol = Chem.MolFromSmiles(m)
+    num_bonds = mol.GetNumBonds()
+    print(mol,num_bonds)
+    smiles_to_bigraph(m, add_self_loop=False, node_featurizer=atom_featurizer,edge_featurizer=bond_featurizer)
+    print(bond_featurizer(mol)['distance'].shape)
+
+    print(atom_featurizer(mol)['node_type'].shape)
     trainmols, train_y = read_from_rdkit(num,0)
     testmols, test_y = read_from_rdkit(num,1)
     train_g = [smiles_to_bigraph(m, add_self_loop=False, node_featurizer=atom_featurizer,edge_featurizer=bond_featurizer) for m in trainmols]

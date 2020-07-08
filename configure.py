@@ -5,7 +5,7 @@
 
 MPNN_Alchemy = {
     'random_seed': 0,
-    'batch_size': 16,
+    'batch_size': 64,
     'node_in_feats': 74,
     'node_out_feats': 64,
     'edge_in_feats': 12,
@@ -20,7 +20,7 @@ MPNN_Alchemy = {
 
 SchNet_Alchemy = {
     'random_seed': 0,
-    'batch_size': 16,
+    'batch_size': 64,
     'node_feats': 64,
     'hidden_feats': [64, 64, 64],
     'classifier_hidden_feats': 64,
@@ -34,15 +34,15 @@ SchNet_Alchemy = {
 
 MGCN_Alchemy = {
     'random_seed': 0,
-    'batch_size': 16,
-    'feats': 128,
+    'batch_size': 64,
+    'feats': 39,
     'n_layers': 3,
     'classifier_hidden_feats': 64,
     'n_tasks': 2,
     'lr': 0.0001,
     'patience': 50,
-    'metric_name': 'mae',
-    'mode': 'lower',
+    'metric_name': 'roc_auc_score',
+    'mode': 'higher',
     'weight_decay': 0
 }
 
