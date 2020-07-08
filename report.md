@@ -2,7 +2,7 @@
 
 杜逸闲
 
-宁晨然
+宁晨然 17307130178
 
 ## 问题描述
 
@@ -196,6 +196,37 @@ $$h_v^{l + 1} = U_{l + 1}(h_v, \sum_{u \in ne[v]} M_{l + 1}(h_v^l, h_u^l, x_{uv}
 
 ![MPNN](MPNN.png)
 
+## 数据处理
+
+### 工具
+
+使用rdkit+dgl的方法，使用rdkit的分子表示，并且用dgl中的工具提取特征。
+
+### 方法
+
+由于一开始数据表示使用的是smiles的字符串，如`CCN(CC)C(=S)SSC(=S)N(CC)CC`
+
+可以通过如下步骤将其变为模型输入：
+
+#### 特征提取器
+
+`CanonicalAtomFeaturizer`和`CanonicalBondFeaturizer`分别作为提取分子节点和分子边信息的工具。这在dgl的工具中`featurizer`中定义。
+
+- 原子特征提取为：atom_type_one_hot, atom_degree_one_hot, atom_implicit_valence_one_hot, atom_formal_charge, atom_num_radical_electrons，atom_hybridization_one_hot, atom_is_aromatic, atom_total_num_H_one_hot
+- 键特征提取为：bond_type_one_hot, bond_is_conjugated, bond_is_in_ring, bond_stereo_one_hot
+
+#### 特征提取方法
+
+使用dgl中定义的特征提取api，可以直接从smiles字符串转为dglgraph的图
+
+`smiles_to_bigraph(m, add_self_loop=False, node_featurizer=atom_featurizer,edge_featurizer=bond_featurizer)`
+
+然后可以将其封装为测试集和训练集，再使用torch自带的dataloader组装成batchsize为64（视情况定）的训练集和测试集。
+
+
+
+
+
 ## 结果
 
 ### MPNN
@@ -211,12 +242,18 @@ $$h_v^{l + 1} = U_{l + 1}(h_v, \sum_{u \in ne[v]} M_{l + 1}(h_v^l, h_u^l, x_{uv}
 
 下面是最佳效果时模型的表现。
 
+fold0-fold1
+
 ![image-20200708182824637](D:\复旦\计算机课程\大三下\模式识别与机器学习\project\PRML-Project\image-20200708182824637.png)
+
+![image-20200708202032004](D:\复旦\计算机课程\大三下\模式识别与机器学习\project\PRML-Project\image-20200708202032004.png)
+
+
 
 | fold | train roc auc | train prc auc | dev roc auc | dev prc auc |
 | ---- | ------------- | ------------- | ----------- | ----------- |
 | 0    | 0.9981        | 0.9195        | 0.9818      | 0.8335      |
-| 1    |               |               |             |             |
+| 1    | 0.9350        | 0.7171        | 0.8712      | 0.3110      |
 | 2    |               |               |             |             |
 | 3    |               |               |             |             |
 
