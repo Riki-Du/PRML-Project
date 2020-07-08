@@ -1,6 +1,6 @@
 # 模式识别与机器学习 Project - [AI Cures](https://www.aicures.mit.edu/)
 
-杜逸闲
+杜逸闲 17300240036
 
 宁晨然 17307130178
 
@@ -244,9 +244,9 @@ $$h_v^{l + 1} = U_{l + 1}(h_v, \sum_{u \in ne[v]} M_{l + 1}(h_v^l, h_u^l, x_{uv}
 
 fold0-fold1
 
-![image-20200708182824637](D:\复旦\计算机课程\大三下\模式识别与机器学习\project\PRML-Project\image-20200708182824637.png)
+![image-20200708182824637](image-20200708182824637.png)
 
-![image-20200708202032004](D:\复旦\计算机课程\大三下\模式识别与机器学习\project\PRML-Project\image-20200708202032004.png)
+![image-20200708202032004](image-20200708202032004.png)
 
 
 
