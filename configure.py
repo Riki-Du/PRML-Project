@@ -38,7 +38,7 @@ MGCN_Alchemy = {
     'feats': 128,
     'n_layers': 3,
     'classifier_hidden_feats': 64,
-    'n_tasks': 12,
+    'n_tasks': 2,
     'lr': 0.0001,
     'patience': 50,
     'metric_name': 'mae',
