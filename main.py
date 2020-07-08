@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 import torch.nn as nn
+import matplotlib as plt
 
 from torch.utils.data import DataLoader
 
@@ -8,6 +9,9 @@ from dgllife.data import TencentAlchemyDataset
 from dgllife.utils import EarlyStopping, Meter
 
 from utils import set_random_seed, collate_molgraphs, load_model, load_data
+
+training_score = []
+validation_score = []
 
 def regress(args, model, bg):
     if args['model'] == 'MPNN':
@@ -37,6 +41,7 @@ def run_a_train_epoch(args, epoch, model, data_loader,
         optimizer.step()
         train_meter.update(prediction, labels)
     total_score = np.mean(train_meter.compute_metric(args['metric_name']))
+    training_score.append(total_score)
     print('epoch {:d}/{:d}, training {} {:.4f}'.format(
         epoch + 1, args['num_epochs'], args['metric_name'], total_score))
 
@@ -83,12 +88,23 @@ def main(args):
         # Validation and early stop
         val_score = run_an_eval_epoch(args, model, val_loader)
         early_stop = stopper.step(val_score, model)
+        validation_score.append(val_score)
         print('epoch {:d}/{:d}, validation {} {:.4f}, best validation {} {:.4f}'.format(
             epoch + 1, args['num_epochs'], args['metric_name'], val_score,
             args['metric_name'], stopper.best_score))
 
         if early_stop:
             break
+
+    plt.subplot(212)
+    # plt.style.use('ggplot')
+    plt.plot(training_score, c='b', alpha=0.6, label='training_roc_auc')
+    plt.legend()
+    plt.plot(validation_score, c='r', alpha=0.6, label='validation_roc_auc')
+    plt.legend()
+    plt.xlabel('epoch')
+    plt.ylabel('auc')
+    plt.show()
 
 if __name__ == "__main__":
     import argparse
@@ -98,7 +114,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Alchemy for Quantum Chemistry')
     parser.add_argument('-m', '--model', type=str, choices=['MPNN', 'SchNet', 'MGCN'],
                         help='Model to use')
-    parser.add_argument('-n', '--num-epochs', type=int, default=250,
+    parser.add_argument('-n', '--num-epochs', type=int, default=20,
                         help='Maximum number of epochs for training')
     args = parser.parse_args().__dict__
     #print(args)

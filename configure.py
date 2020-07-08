@@ -5,7 +5,7 @@
 
 MPNN_Alchemy = {
     'random_seed': 0,
-    'batch_size': 64,
+    'batch_size': 16,
     'node_in_feats': 74,
     'node_out_feats': 64,
     'edge_in_feats': 12,
@@ -24,7 +24,7 @@ SchNet_Alchemy = {
     'node_feats': 64,
     'hidden_feats': [64, 64, 64],
     'classifier_hidden_feats': 64,
-    'n_tasks': 12,
+    'n_tasks': 2,
     'lr': 0.0001,
     'patience': 50,
     'metric_name': 'roc_auc_score',
