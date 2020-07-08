@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <title>模式识别与机器学习 Project - [AI Cures](https://www.aicures.mit.edu/)</title>
+        <style>
+</style>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.10.2/dist/katex.min.css" integrity="sha384-yFRtMMDnQtDRO8rLpMIKrtPCD5jdktao2TV19YiZYWMDkUR5GQZR/NOVTdquEx1j" crossorigin="anonymous">
+<link href="https://cdn.jsdelivr.net/npm/katex-copytex@latest/dist/katex-copytex.min.css" rel="stylesheet" type="text/css">
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Microsoft/vscode/extensions/markdown-language-features/media/markdown.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Microsoft/vscode/extensions/markdown-language-features/media/highlight.css">
+<style>
+            body {
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe WPC', 'Segoe UI', system-ui, 'Ubuntu', 'Droid Sans', sans-serif;
+                font-size: 14px;
+                line-height: 1.6;
+            }
+        </style>
+        <style>
+.task-list-item { list-style-type: none; } .task-list-item-checkbox { margin-left: -20px; vertical-align: middle; }
+</style>
+        
+        <script src="https://cdn.jsdelivr.net/npm/katex-copytex@latest/dist/katex-copytex.min.js"></script>
+        
+    </head>
+    <body class="vscode-light">
+        <h1 id="模式识别与机器学习-project---ai-cures">模式识别与机器学习 Project - <a href="https://www.aicures.mit.edu/">AI Cures</a></h1>
+<p>杜逸闲 17300240036</p>
+<p>宁晨然 17307130178</p>
+<p><a href="https://github.com/Riki-Du/PRML-Project">本项目代码</a> 已上传至Github, 其中核心代码为main, utils和configure.</p>
+<p>依赖库：</p>
+<ol>
+<li>torch &amp; torchvision</li>
+<li>rdkit</li>
+<li>dgl</li>
+<li>dgllife</li>
+<li>matplotlib</li>
+<li>sklearn</li>
+</ol>
+<h2 id="问题描述">问题描述</h2>
+<p>给出若干种化合物的SMILES表示，要求判断其是否对Covid-19具有抗性，输出为0或者1，是一个2分类问题。</p>
+<h3 id="化合物的smiles表示">化合物的SMILES表示</h3>
+<p>SMILES (implified molecular input line entry specification), 是一种用ASCII字符串描述分子结构的规范，语法如下：</p>
+<ol>
+<li>原子用方括号内的化学元素表示，可以省略，如<code>[Au]</code>表示金原子。在有机物中只有C、N、O、P、S、Br、Cl、I可以省略方括号。</li>
+<li>氢原子忽略不写，当化合价不足时用氢原子补足。如水的SMILES是<code>O</code>。</li>
+<li>原子间双键用'='表示，三键用'#'表示。</li>
+<li>如果结构中有环，将环断开并在断开的两个原子旁用同一个数字标记，表示原子间有键相连。</li>
+<li>芳香环中的C、O、S、N原子分别用小写字母c, o, s, n表示。</li>
+<li>分支结构用圆括号表示。</li>
+</ol>
+<p>SMILES的局限性在于没法很好的表示分子的空间排列。</p>
+<p>下面是一些实例：</p>
+<ol>
+<li>
+<p>水：O</p>
+<p><img src="file:///d:\Learning\Cumputer Science\PRML\PRML-Project\%E6%B0%B4.jpg" alt="水"></p>
+</li>
+<li>
+<p>乙醇：CCO</p>
+<p><img src="file:///d:\Learning\Cumputer Science\PRML\PRML-Project\%E4%B9%99%E9%86%87.jpg" alt="乙醇"></p>
+</li>
+<li>
+<p>二氧化碳：O=C=O</p>
+<p><img src="file:///d:\Learning\Cumputer Science\PRML\PRML-Project\%E4%BA%8C%E6%B0%A7%E5%8C%96%E7%A2%B3.jpg" alt="二氧化碳"></p>
+</li>
+<li>
+<p>氰化氢：C#N</p>
+<p><img src="file:///d:\Learning\Cumputer Science\PRML\PRML-Project\%E6%B0%B0%E5%8C%96%E6%B0%A2.jpg" alt="氰化氢"></p>
+</li>
+<li>
+<p>环已烷：C1CCCCC1</p>
+<p><img src="file:///d:\Learning\Cumputer Science\PRML\PRML-Project\%E7%8E%AF%E5%B7%B2%E7%83%B7.jpg" alt="环已烷"></p>
+</li>
+<li>
+<p>乙烷：CC</p>
+<p><img src="file:///d:\Learning\Cumputer Science\PRML\PRML-Project\%E4%B9%99%E7%83%B7.jpg" alt="乙烷"></p>
+</li>
+<li>
+<p>乙烯：C=C</p>
+<p><img src="file:///d:\Learning\Cumputer Science\PRML\PRML-Project\%E4%B9%99%E7%83%AF.jpg" alt="乙烯"></p>
+</li>
+<li>
+<p>乙炔：C#C</p>
+<p><img src="file:///d:\Learning\Cumputer Science\PRML\PRML-Project\%E4%B9%99%E7%82%94.jpg" alt="乙炔"></p>
+</li>
+<li>
+<p>乙酸乙酯：CC(=O)OCC</p>
+<p><img src="file:///d:\Learning\Cumputer Science\PRML\PRML-Project\%E4%B9%99%E9%85%B8%E4%B9%99%E9%85%AF.jpg" alt="乙酸乙酯"></p>
+</li>
+</ol>
+<h3 id="数据集获取">数据集获取</h3>
+<p>在<a href="https://www.aicures.mit.edu/forum/_data">官方论坛</a>填写自己的姓名和邮箱可以获取到数据本次Benchmark的数据，也可以在<a href="https://www.aicures.mit.edu/data">数据页面</a>下载其他数据集。</p>
+<h3 id="流程图">流程图</h3>
+<p>本次实验的整个处理流程如下。以最终采用的MPNN模型为例。</p>
+<p><img src="file:///d:\Learning\Cumputer Science\PRML\PRML-Project\image-20200708203144047.png" alt="image-20200708203144047"></p>
+<h2 id="评价标准">评价标准</h2>
+<p>了解数据评价标准可以帮助我们更好的评价自己的模型。该任务的评价标准有四个，见<a href="https://www.aicures.mit.edu/tasks">Task页面</a>下的排名.</p>
+<p><img src="file:///d:\Learning\Cumputer Science\PRML\PRML-Project\%E8%AF%84%E4%BB%B7%E6%A0%87%E5%87%86.png" alt="评价标准"></p>
+<h3 id="交叉验证">交叉验证</h3>
+<p>由于该数据集的规模较小，为了防止过拟合，数据集将被平分为10份。每次训练我们选取其中的9份作为训练集，剩下的1份作为验证集。上图的10-fold CV (cross validation)前缀就代表交叉验证。</p>
+<h3 id="roc-auc--prc-auc">ROC-AUC &amp;&amp; PRC-AUC</h3>
+<p>对于交叉验证和总测试集，我们都有两个指标，ROC-AUC和PRC-AUC, 他们均能一定程度上反应分类器的性能，但在本项目中PRC-AUC会用作分类器排序的第一参数。我们将分别介绍ROC-AUC和PRC-AUC并分析为何PRC-AUC在此项目中更为重要。</p>
+<p>在一个二分类任务中，对于一个分类器的预测结果，我们有如下的定义：</p>
+<ol>
+<li><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>T</mi><mi>P</mi></mrow><annotation encoding="application/x-tex">TP</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.68333em;vertical-align:0em;"></span><span class="mord mathdefault" style="margin-right:0.13889em;">T</span><span class="mord mathdefault" style="margin-right:0.13889em;">P</span></span></span></span>, True Positive为真正例（测试集标记为正，分类器预测为正）的数量。</li>
+<li><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>F</mi><mi>P</mi></mrow><annotation encoding="application/x-tex">FP</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.68333em;vertical-align:0em;"></span><span class="mord mathdefault" style="margin-right:0.13889em;">F</span><span class="mord mathdefault" style="margin-right:0.13889em;">P</span></span></span></span>, False Positive为假正例（测试集标记为负，而分类器预测为正）的数量。</li>
+<li><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>F</mi><mi>N</mi></mrow><annotation encoding="application/x-tex">FN</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.68333em;vertical-align:0em;"></span><span class="mord mathdefault" style="margin-right:0.13889em;">F</span><span class="mord mathdefault" style="margin-right:0.10903em;">N</span></span></span></span>, False Negative为假负例（测试集标记为正，分类器预测为负）的数量。</li>
+<li><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>T</mi><mi>N</mi></mrow><annotation encoding="application/x-tex">TN</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.68333em;vertical-align:0em;"></span><span class="mord mathdefault" style="margin-right:0.13889em;">T</span><span class="mord mathdefault" style="margin-right:0.10903em;">N</span></span></span></span>, True Negative为真负例（测试集标记为负，分类器预测为负）的数量。</li>
+</ol>
+<h4 id="roc曲线">ROC曲线</h4>
+<p>在了解ROC (Receiver Operating Characteristic) 曲线之前，我们定义两个指标：</p>
+<ol>
+<li>真正例率 (True Positive Rate, TPR), 表示所有正例中，预测为正例的比例：<p><span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>T</mi><mi>P</mi><mi>R</mi><mo>=</mo><mfrac><mrow><mi>T</mi><mi>P</mi></mrow><mrow><mi>T</mi><mi>P</mi><mo>+</mo><mi>F</mi><mi>N</mi></mrow></mfrac></mrow><annotation encoding="application/x-tex">TPR = \frac{TP}{TP + FN}
+</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.68333em;vertical-align:0em;"></span><span class="mord mathdefault" style="margin-right:0.13889em;">T</span><span class="mord mathdefault" style="margin-right:0.13889em;">P</span><span class="mord mathdefault" style="margin-right:0.00773em;">R</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span></span><span class="base"><span class="strut" style="height:2.1296600000000003em;vertical-align:-0.7693300000000001em;"></span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.36033em;"><span style="top:-2.314em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord mathdefault" style="margin-right:0.13889em;">T</span><span class="mord mathdefault" style="margin-right:0.13889em;">P</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span><span class="mord mathdefault" style="margin-right:0.13889em;">F</span><span class="mord mathdefault" style="margin-right:0.10903em;">N</span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.677em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord mathdefault" style="margin-right:0.13889em;">T</span><span class="mord mathdefault" style="margin-right:0.13889em;">P</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.7693300000000001em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span></span></span></span></span></p>
+</li>
+<li>假正例率 (False, Positive Rate, FPR), 表示所有负例中，预测为正例的比例：<p><span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>F</mi><mi>P</mi><mi>R</mi><mo>=</mo><mfrac><mrow><mi>F</mi><mi>P</mi></mrow><mrow><mi>T</mi><mi>N</mi><mo>+</mo><mi>F</mi><mi>P</mi></mrow></mfrac></mrow><annotation encoding="application/x-tex">FPR = \frac{FP}{TN + FP}
+</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.68333em;vertical-align:0em;"></span><span class="mord mathdefault" style="margin-right:0.13889em;">F</span><span class="mord mathdefault" style="margin-right:0.13889em;">P</span><span class="mord mathdefault" style="margin-right:0.00773em;">R</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span></span><span class="base"><span class="strut" style="height:2.1296600000000003em;vertical-align:-0.7693300000000001em;"></span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.36033em;"><span style="top:-2.314em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord mathdefault" style="margin-right:0.13889em;">T</span><span class="mord mathdefault" style="margin-right:0.10903em;">N</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span><span class="mord mathdefault" style="margin-right:0.13889em;">F</span><span class="mord mathdefault" style="margin-right:0.13889em;">P</span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.677em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord mathdefault" style="margin-right:0.13889em;">F</span><span class="mord mathdefault" style="margin-right:0.13889em;">P</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.7693300000000001em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span></span></span></span></span></p>
+</li>
+</ol>
+<p>在一个二分任务里，很多分类器输出一个实数值或者一个概率，接着设定一个阈值，当高于这个阈值时标记为正例，反之标记为负例。</p>
+<p>因此，当改变这个阈值的时候，<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>T</mi><mi>P</mi><mi>R</mi></mrow><annotation encoding="application/x-tex">TPR</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.68333em;vertical-align:0em;"></span><span class="mord mathdefault" style="margin-right:0.13889em;">T</span><span class="mord mathdefault" style="margin-right:0.13889em;">P</span><span class="mord mathdefault" style="margin-right:0.00773em;">R</span></span></span></span>和<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>F</mi><mi>P</mi><mi>R</mi></mrow><annotation encoding="application/x-tex">FPR</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.68333em;vertical-align:0em;"></span><span class="mord mathdefault" style="margin-right:0.13889em;">F</span><span class="mord mathdefault" style="margin-right:0.13889em;">P</span><span class="mord mathdefault" style="margin-right:0.00773em;">R</span></span></span></span>也会相应的改变。我们以<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>F</mi><mi>P</mi><mi>R</mi></mrow><annotation encoding="application/x-tex">FPR</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.68333em;vertical-align:0em;"></span><span class="mord mathdefault" style="margin-right:0.13889em;">F</span><span class="mord mathdefault" style="margin-right:0.13889em;">P</span><span class="mord mathdefault" style="margin-right:0.00773em;">R</span></span></span></span>为横坐标，<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>T</mi><mi>P</mi><mi>R</mi></mrow><annotation encoding="application/x-tex">TPR</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.68333em;vertical-align:0em;"></span><span class="mord mathdefault" style="margin-right:0.13889em;">T</span><span class="mord mathdefault" style="margin-right:0.13889em;">P</span><span class="mord mathdefault" style="margin-right:0.00773em;">R</span></span></span></span>为纵坐标，当阈值改变时就可以得到一系列的点（很显然这些点关于阈值的函数是“连续”的），我们将这些点连接起来平滑处理就可以得到ROC曲线了。下图中蓝色实现即为某分类器的ROC曲线，而红色虚线为随机情况下的ROC曲线。</p>
+<p><img src="file:///d:\Learning\Cumputer Science\PRML\PRML-Project\ROC%E6%9B%B2%E7%BA%BF.png" alt="ROC曲线"></p>
+<h4 id="roc-auc">ROC-AUC</h4>
+<p><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>A</mi><mi>U</mi><mi>C</mi></mrow><annotation encoding="application/x-tex">AUC</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.68333em;vertical-align:0em;"></span><span class="mord mathdefault">A</span><span class="mord mathdefault" style="margin-right:0.10903em;">U</span><span class="mord mathdefault" style="margin-right:0.07153em;">C</span></span></span></span> (Area Under Curve) 就是曲线下的面积。该值的实际上代表了一个概率：随机选择一个正例和一个负例，该分类器对于正例的输出比负例高的概率（之前说过分类器输出一个实数值）。那么ROC-AUC越大，代表分类器越有对于正例输出较大的值，即能够更好的分类。</p>
+<p>用以下标准可以大概通过AUC预估分类器的性能:</p>
+<ol>
+<li><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>A</mi><mi>U</mi><mi>C</mi><mo>=</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">AUC = 1</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.68333em;vertical-align:0em;"></span><span class="mord mathdefault">A</span><span class="mord mathdefault" style="margin-right:0.10903em;">U</span><span class="mord mathdefault" style="margin-right:0.07153em;">C</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span></span><span class="base"><span class="strut" style="height:0.64444em;vertical-align:0em;"></span><span class="mord">1</span></span></span></span>, 该分类器是完美的，因为其ROC曲线是一条经过(0, 1)的折线，一定存在一个分类器输出的阈值使得，<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>T</mi><mi>P</mi><mi>R</mi><mo>=</mo><mn>1</mn><mo separator="true">,</mo><mi>F</mi><mi>P</mi><mi>R</mi><mo>=</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">TPR = 1, FPR = 0</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.68333em;vertical-align:0em;"></span><span class="mord mathdefault" style="margin-right:0.13889em;">T</span><span class="mord mathdefault" style="margin-right:0.13889em;">P</span><span class="mord mathdefault" style="margin-right:0.00773em;">R</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span></span><span class="base"><span class="strut" style="height:0.8777699999999999em;vertical-align:-0.19444em;"></span><span class="mord">1</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord mathdefault" style="margin-right:0.13889em;">F</span><span class="mord mathdefault" style="margin-right:0.13889em;">P</span><span class="mord mathdefault" style="margin-right:0.00773em;">R</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span></span><span class="base"><span class="strut" style="height:0.64444em;vertical-align:0em;"></span><span class="mord">0</span></span></span></span>, 即正确率为100%.</li>
+<li><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>0.5</mn><mo>&lt;</mo><mi>A</mi><mi>U</mi><mi>C</mi><mo>&lt;</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">0.5 &lt; AUC &lt; 1</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.68354em;vertical-align:-0.0391em;"></span><span class="mord">0</span><span class="mord">.</span><span class="mord">5</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mrel">&lt;</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span></span><span class="base"><span class="strut" style="height:0.72243em;vertical-align:-0.0391em;"></span><span class="mord mathdefault">A</span><span class="mord mathdefault" style="margin-right:0.10903em;">U</span><span class="mord mathdefault" style="margin-right:0.07153em;">C</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mrel">&lt;</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span></span><span class="base"><span class="strut" style="height:0.64444em;vertical-align:0em;"></span><span class="mord">1</span></span></span></span>, 该分类器有一定价值，选取合适阈值的话可以得到优于随即猜测的结果。</li>
+<li><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>A</mi><mi>U</mi><mi>C</mi><mo>=</mo><mn>0.5</mn></mrow><annotation encoding="application/x-tex">AUC = 0.5</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.68333em;vertical-align:0em;"></span><span class="mord mathdefault">A</span><span class="mord mathdefault" style="margin-right:0.10903em;">U</span><span class="mord mathdefault" style="margin-right:0.07153em;">C</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span></span><span class="base"><span class="strut" style="height:0.64444em;vertical-align:0em;"></span><span class="mord">0</span><span class="mord">.</span><span class="mord">5</span></span></span></span>, 该分类器效果基本等于随机，随机分类的ROC曲线为一条直线。</li>
+<li><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>A</mi><mi>U</mi><mi>C</mi><mo>&lt;</mo><mn>0.5</mn></mrow><annotation encoding="application/x-tex">AUC &lt; 0.5</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.72243em;vertical-align:-0.0391em;"></span><span class="mord mathdefault">A</span><span class="mord mathdefault" style="margin-right:0.10903em;">U</span><span class="mord mathdefault" style="margin-right:0.07153em;">C</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mrel">&lt;</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span></span><span class="base"><span class="strut" style="height:0.64444em;vertical-align:0em;"></span><span class="mord">0</span><span class="mord">.</span><span class="mord">5</span></span></span></span>, 该分类器劣于随机，需要优化或者找出错误时，但将输出结果取反可以得到由于随机的结果。</li>
+</ol>
+<p><img src="file:///d:\Learning\Cumputer Science\PRML\PRML-Project\AUC%E5%80%BC.png" alt="AUC"></p>
+<h4 id="pr曲线">PR曲线</h4>
+<p>在了解PRC (Precision-Recall Curve)之前，我们同样定义两个指标：</p>
+<ol>
+<li>查准率 (Precision), 表示所有分类器预测的正例中，真正的正例的比例：<p><span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>P</mi><mi>r</mi><mi>e</mi><mi>c</mi><mi>i</mi><mi>s</mi><mi>i</mi><mi>o</mi><mi>n</mi><mo>=</mo><mfrac><mrow><mi>T</mi><mi>P</mi></mrow><mrow><mi>T</mi><mi>P</mi><mo>+</mo><mi>F</mi><mi>P</mi></mrow></mfrac></mrow><annotation encoding="application/x-tex">Precision = \frac{TP}{TP + FP}
+</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.68333em;vertical-align:0em;"></span><span class="mord mathdefault" style="margin-right:0.13889em;">P</span><span class="mord mathdefault" style="margin-right:0.02778em;">r</span><span class="mord mathdefault">e</span><span class="mord mathdefault">c</span><span class="mord mathdefault">i</span><span class="mord mathdefault">s</span><span class="mord mathdefault">i</span><span class="mord mathdefault">o</span><span class="mord mathdefault">n</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span></span><span class="base"><span class="strut" style="height:2.1296600000000003em;vertical-align:-0.7693300000000001em;"></span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.36033em;"><span style="top:-2.314em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord mathdefault" style="margin-right:0.13889em;">T</span><span class="mord mathdefault" style="margin-right:0.13889em;">P</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span><span class="mord mathdefault" style="margin-right:0.13889em;">F</span><span class="mord mathdefault" style="margin-right:0.13889em;">P</span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.677em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord mathdefault" style="margin-right:0.13889em;">T</span><span class="mord mathdefault" style="margin-right:0.13889em;">P</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.7693300000000001em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span></span></span></span></span></p>
+</li>
+<li>查全率 (Recall), 表示所有正例中，预测为正例的比例：<p><span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>R</mi><mi>e</mi><mi>c</mi><mi>a</mi><mi>l</mi><mi>l</mi><mo>=</mo><mfrac><mrow><mi>T</mi><mi>P</mi></mrow><mrow><mi>T</mi><mi>P</mi><mo>+</mo><mi>F</mi><mi>N</mi></mrow></mfrac></mrow><annotation encoding="application/x-tex">Recall = \frac{TP}{TP + FN}
+</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.69444em;vertical-align:0em;"></span><span class="mord mathdefault" style="margin-right:0.00773em;">R</span><span class="mord mathdefault">e</span><span class="mord mathdefault">c</span><span class="mord mathdefault">a</span><span class="mord mathdefault" style="margin-right:0.01968em;">l</span><span class="mord mathdefault" style="margin-right:0.01968em;">l</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span></span><span class="base"><span class="strut" style="height:2.1296600000000003em;vertical-align:-0.7693300000000001em;"></span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.36033em;"><span style="top:-2.314em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord mathdefault" style="margin-right:0.13889em;">T</span><span class="mord mathdefault" style="margin-right:0.13889em;">P</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span><span class="mord mathdefault" style="margin-right:0.13889em;">F</span><span class="mord mathdefault" style="margin-right:0.10903em;">N</span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.677em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord mathdefault" style="margin-right:0.13889em;">T</span><span class="mord mathdefault" style="margin-right:0.13889em;">P</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.7693300000000001em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span></span></span></span></span></p>
+</li>
+</ol>
+<p>与ROC曲线类似，以<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>R</mi><mi>e</mi><mi>c</mi><mi>a</mi><mi>l</mi><mi>l</mi></mrow><annotation encoding="application/x-tex">Recall</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.69444em;vertical-align:0em;"></span><span class="mord mathdefault" style="margin-right:0.00773em;">R</span><span class="mord mathdefault">e</span><span class="mord mathdefault">c</span><span class="mord mathdefault">a</span><span class="mord mathdefault" style="margin-right:0.01968em;">l</span><span class="mord mathdefault" style="margin-right:0.01968em;">l</span></span></span></span>作为横坐标, <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>P</mi><mi>r</mi><mi>e</mi><mi>c</mi><mi>i</mi><mi>s</mi><mi>i</mi><mi>o</mi><mi>n</mi></mrow><annotation encoding="application/x-tex">Precision</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.68333em;vertical-align:0em;"></span><span class="mord mathdefault" style="margin-right:0.13889em;">P</span><span class="mord mathdefault" style="margin-right:0.02778em;">r</span><span class="mord mathdefault">e</span><span class="mord mathdefault">c</span><span class="mord mathdefault">i</span><span class="mord mathdefault">s</span><span class="mord mathdefault">i</span><span class="mord mathdefault">o</span><span class="mord mathdefault">n</span></span></span></span>作为纵坐标，改变阈值后得到的点连线后得到一条曲线（折线）。下图就是一个PR曲线的例子：</p>
+<p><img src="file:///d:\Learning\Cumputer Science\PRML\PRML-Project\PRC.png" alt="PRC"></p>
+<p>同样PRC-AUC也是指PRC曲线下方的面积，取值范围在[0, 1]之间，越大越好。</p>
+<h4 id="prc-auc的优势">PRC-AUC的优势</h4>
+<p>PR和ROC在面对一个正负样本不均衡的数据集时的表现是不同的。在数据不平衡时，PR曲线是很敏感的，随着正负样本比例的变化，PR曲线会发生强烈的变化；而ROC曲线是不敏感的，其曲线基本不变。</p>
+<p>因此ROC面对不平衡数据的一直表现表明其可以衡量一个模型本身的预测能力，而这个预测能力与样本正负比例无关。而PR曲线因为对样本比较敏感，因此在样本比例发生变化时，可以看出分类器对应的效果。</p>
+<p>在实际数据中，样本比例经常是不平衡的，即正例远多于负例或者反之。因此PR曲线更有助于了解分类器实际的效果和作用，以此来改进模型。</p>
+<p>而在本数据集下，正负样本数量相差悬殊，负例远远多于正例。在总训练集<code>train.csv</code>中，正例只有48个，而我们总共有2097个例子！在这种情况下，哪怕是一个非常差劲的模型，ROC的效果看上去依然不错，但是PR上效果则一般。这说明当正负样本比例悬殊较大时，PR曲线比ROC曲线更能反映分类器的性能。</p>
+<p>因此在本项目中采用PRC-AUC作为第一评测指标。</p>
+<h2 id="工具">工具</h2>
+<h3 id="rdkit">RDKit</h3>
+<p>RDKit是一个强大的开源化学信息python工具包，其和机器学习的联系紧密，可以方便的将分子模型转化成图神经网络所需的格式，同时可以生成用于机器学习的分子描述符。由于其核心数据结构和算法均由C++实现，效率比较令人满意。</p>
+<p>RDKit可以很方便的将分子的SMILES串转化成分子模型并以多种格式输出，如下代码可以读入SMILES串并保存为图片格式：</p>
+<pre><code class="language-python"><div>SMILES = <span class="hljs-string">"C1CCCCC1"</span>
+Mol = Chem.MolFromSmiles(SMILES)
+Draw.MolToImageFile(Mol, <span class="hljs-string">"环已烷.jpg"</span>)
+</div></code></pre>
+<h3 id="dgl-deep-graph-library">DGL (Deep Graph Library)</h3>
+<p>DGL是一款开源的专门面向图神经网络的框架，是基于Rdkit和Pytorch或Mxnet框架上的Python框架。因此习惯于Pytorch的用户可以快速上手DGL, 也可以在DGL的框架内用Pytorch自定义很多功能，如提取特征等。</p>
+<h4 id="dgl-lifesci">DGL-LifeSci</h4>
+<p>DGL-LifeSci是DGL的一个子包，专门用于将图神经网络应用于化学和生物领域的多种任务中，其基于Pytorch和DGL, 提供如下功能：</p>
+<ol>
+<li>各种用于数据处理，模型训练和模型评估的工具，比如内置的各种对于点和边的特征提取器 (Featurizer), 将分子SMILES串直接转化成图的工具、自定义损失函数、自动计算多种机器学习评判标准如mae, roc_auc等。</li>
+<li>可以灵活自定义的模型，如GCN, MGCN, GAT, MPNN, SchNet等。</li>
+<li>已经预训练好的可以直接使用的模型。</li>
+</ol>
+<p>本项目中代码依赖RDKit, Pytorch, DGL, DGL-LifeSci包实现。</p>
+<h2 id="模型">模型</h2>
+<h3 id="gcn-graph-convolutional-network">GCN (Graph Convolutional Network)</h3>
+<p>在本项目中，分子的数据结构是图。不同于在CV等领域的图等输入数据，分子结构图属于拓扑结构。因此，图神经网络用来处理传统神经网络如RNN和CNN无法处理的具有复杂结构的数据类型。</p>
+<p>图神经网络的应用范围和前景广阔，如对已知分子结构的化合物判断其性质，对物理模型进行建模，分析社交网络甚至处理在CV和NLP等领域也存在的拓扑关系。</p>
+<p>而卷积操作作为效果显著的局部特征提取手段，在传统神经网络中得到了大量的应用，得到了卷积神经网络。</p>
+<p><img src="file:///d:\Learning\Cumputer Science\PRML\PRML-Project\%E5%9B%BE%E7%89%87%E5%8D%B7%E7%A7%AF.jpg" alt="图片卷积"></p>
+<p>注意在传统的卷积神经网络，如上图中，一个点总是从他和他相邻的一共九个点中学习信息至下一层，这要求每个节点的相邻节点个数是固定的（边界可填充空节点）。但是在拓扑结构中，这样的前提并不能总是被满足，某些点可能会有很多邻居而有些点可能只有很少邻居。</p>
+<p><img src="file:///d:\Learning\Cumputer Science\PRML\PRML-Project\%E5%9B%BE%E7%89%87%E5%92%8C%E5%9B%BE.png" alt="图片和图"></p>
+<p>那么构建图卷积网络的思路就是要找到适用于图数据结构特征的可学习的卷积核。而构建图卷积网络的框架并没有变，同样是将网络分层，层于层之间用卷积核来传递信息。</p>
+<p><img src="file:///d:\Learning\Cumputer Science\PRML\PRML-Project\%E5%9B%BE%E5%8D%B7%E7%A7%AF%E6%A1%86%E6%9E%B6.png" alt="图卷积框架"></p>
+<p>在第一层网络中，对每个节点的另据都进行一次卷积操作，并用结果经过激活函数（下图中为ReLU）更新下一层的该节点，反复次数就是该CGN的层数。和GNN类似，GCN最后一层后也有一个输出函数，用于将整张图的状态转化成标签，比如本项目中的活跃度二分类。</p>
+<p>而卷积实现的方法多种多样，一个最简单的聚合邻居节点信息的卷积方式是：将所有相邻邻居节点的隐藏状态直接求和，来更新下一层当前节点的隐藏状态。</p>
+<p><span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msubsup><mi>h</mi><mi>v</mi><mrow><mi>l</mi><mo>+</mo><mn>1</mn></mrow></msubsup><mo>=</mo><munder><mo>∑</mo><mrow><mi>u</mi><mo>∈</mo><mi>n</mi><mi>e</mi><mo stretchy="false">[</mo><mi>v</mi><mo stretchy="false">]</mo></mrow></munder><msubsup><mi>h</mi><mi>u</mi><mi>l</mi></msubsup></mrow><annotation encoding="application/x-tex">h_v^{l + 1} = \sum_{u \in ne[v]} h_u^l
+</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1.146108em;vertical-align:-0.247em;"></span><span class="mord"><span class="mord mathdefault">h</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.8991079999999998em;"><span style="top:-2.4530000000000003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathdefault mtight" style="margin-right:0.03588em;">v</span></span></span><span style="top:-3.113em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathdefault mtight" style="margin-right:0.01968em;">l</span><span class="mbin mtight">+</span><span class="mord mtight">1</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.247em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span></span><span class="base"><span class="strut" style="height:2.5660100000000003em;vertical-align:-1.516005em;"></span><span class="mop op-limits"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.050005em;"><span style="top:-1.808995em;margin-left:0em;"><span class="pstrut" style="height:3.05em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathdefault mtight">u</span><span class="mrel mtight">∈</span><span class="mord mathdefault mtight">n</span><span class="mord mathdefault mtight">e</span><span class="mopen mtight">[</span><span class="mord mathdefault mtight" style="margin-right:0.03588em;">v</span><span class="mclose mtight">]</span></span></span></span><span style="top:-3.0500049999999996em;"><span class="pstrut" style="height:3.05em;"></span><span><span class="mop op-symbol large-op">∑</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:1.516005em;"><span></span></span></span></span></span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord"><span class="mord mathdefault">h</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.8991079999999998em;"><span style="top:-2.4530000000000003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathdefault mtight">u</span></span></span><span style="top:-3.113em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathdefault mtight" style="margin-right:0.01968em;">l</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.247em;"><span></span></span></span></span></span></span></span></span></span></span></p>
+<p>其中<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msubsup><mi>h</mi><mi>v</mi><mrow><mi>l</mi><mo>+</mo><mn>1</mn></mrow></msubsup></mrow><annotation encoding="application/x-tex">h_v^{l + 1}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1.0961079999999999em;vertical-align:-0.247em;"></span><span class="mord"><span class="mord mathdefault">h</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.8491079999999999em;"><span style="top:-2.4530000000000003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathdefault mtight" style="margin-right:0.03588em;">v</span></span></span><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathdefault mtight" style="margin-right:0.01968em;">l</span><span class="mbin mtight">+</span><span class="mord mtight">1</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.247em;"><span></span></span></span></span></span></span></span></span></span>代表当前节点<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>v</mi></mrow><annotation encoding="application/x-tex">v</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.43056em;vertical-align:0em;"></span><span class="mord mathdefault" style="margin-right:0.03588em;">v</span></span></span></span>在下一层<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>l</mi><mo>+</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">l + 1</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.77777em;vertical-align:-0.08333em;"></span><span class="mord mathdefault" style="margin-right:0.01968em;">l</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span></span><span class="base"><span class="strut" style="height:0.64444em;vertical-align:0em;"></span><span class="mord">1</span></span></span></span>的隐藏状态，<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>n</mi><mi>e</mi><mo stretchy="false">[</mo><mi>v</mi><mo stretchy="false">]</mo></mrow><annotation encoding="application/x-tex">ne[v]</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathdefault">n</span><span class="mord mathdefault">e</span><span class="mopen">[</span><span class="mord mathdefault" style="margin-right:0.03588em;">v</span><span class="mclose">]</span></span></span></span>是<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>v</mi></mrow><annotation encoding="application/x-tex">v</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.43056em;vertical-align:0em;"></span><span class="mord mathdefault" style="margin-right:0.03588em;">v</span></span></span></span>的所有相邻节点组成的集合，<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msubsup><mi>h</mi><mi>u</mi><mi>l</mi></msubsup></mrow><annotation encoding="application/x-tex">h_u^l</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1.096108em;vertical-align:-0.247em;"></span><span class="mord"><span class="mord mathdefault">h</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.849108em;"><span style="top:-2.4530000000000003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathdefault mtight">u</span></span></span><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathdefault mtight" style="margin-right:0.01968em;">l</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.247em;"><span></span></span></span></span></span></span></span></span></span>是<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>v</mi></mrow><annotation encoding="application/x-tex">v</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.43056em;vertical-align:0em;"></span><span class="mord mathdefault" style="margin-right:0.03588em;">v</span></span></span></span>的邻居<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>u</mi></mrow><annotation encoding="application/x-tex">u</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.43056em;vertical-align:0em;"></span><span class="mord mathdefault">u</span></span></span></span>在当前层<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>l</mi></mrow><annotation encoding="application/x-tex">l</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.69444em;vertical-align:0em;"></span><span class="mord mathdefault" style="margin-right:0.01968em;">l</span></span></span></span>的隐藏状态。</p>
+<h3 id="mpnn-message-passing-neural-network">MPNN (Message Passing Neural Network)</h3>
+<p>MPNN是由Google提出的一种GCN框架，他将上面提到的卷积步骤分为两个过程：<strong>消息传递</strong>和<strong>状态更新</strong>，定义为两个函数<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>M</mi><mi>l</mi></msub></mrow><annotation encoding="application/x-tex">M_l</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.83333em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathdefault" style="margin-right:0.10903em;">M</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.33610799999999996em;"><span style="top:-2.5500000000000003em;margin-left:-0.10903em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathdefault mtight" style="margin-right:0.01968em;">l</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span>和<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>U</mi><mi>l</mi></msub></mrow><annotation encoding="application/x-tex">U_l</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.83333em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathdefault" style="margin-right:0.10903em;">U</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.33610799999999996em;"><span style="top:-2.5500000000000003em;margin-left:-0.10903em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathdefault mtight" style="margin-right:0.01968em;">l</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span>. 将节点<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>v</mi></mrow><annotation encoding="application/x-tex">v</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.43056em;vertical-align:0em;"></span><span class="mord mathdefault" style="margin-right:0.03588em;">v</span></span></span></span>的特征直接作为初始状态<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msubsup><mi>h</mi><mi>v</mi><mn>0</mn></msubsup></mrow><annotation encoding="application/x-tex">h_v^0</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1.061108em;vertical-align:-0.247em;"></span><span class="mord"><span class="mord mathdefault">h</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.8141079999999999em;"><span style="top:-2.4530000000000003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathdefault mtight" style="margin-right:0.03588em;">v</span></span></span><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">0</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.247em;"><span></span></span></span></span></span></span></span></span></span>，隐藏状态的更新公式如下：</p>
+<p><span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msubsup><mi>h</mi><mi>v</mi><mrow><mi>l</mi><mo>+</mo><mn>1</mn></mrow></msubsup><mo>=</mo><msub><mi>U</mi><mrow><mi>l</mi><mo>+</mo><mn>1</mn></mrow></msub><mo stretchy="false">(</mo><msub><mi>h</mi><mi>v</mi></msub><mo separator="true">,</mo><munder><mo>∑</mo><mrow><mi>u</mi><mo>∈</mo><mi>n</mi><mi>e</mi><mo stretchy="false">[</mo><mi>v</mi><mo stretchy="false">]</mo></mrow></munder><msub><mi>M</mi><mrow><mi>l</mi><mo>+</mo><mn>1</mn></mrow></msub><mo stretchy="false">(</mo><msubsup><mi>h</mi><mi>v</mi><mi>l</mi></msubsup><mo separator="true">,</mo><msubsup><mi>h</mi><mi>u</mi><mi>l</mi></msubsup><mo separator="true">,</mo><msub><mi>x</mi><mrow><mi>u</mi><mi>v</mi></mrow></msub><mo stretchy="false">)</mo><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">h_v^{l + 1} = U_{l + 1}(h_v, \sum_{u \in ne[v]} M_{l + 1}(h_v^l, h_u^l, x_{uv}))
+</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1.146108em;vertical-align:-0.247em;"></span><span class="mord"><span class="mord mathdefault">h</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.8991079999999998em;"><span style="top:-2.4530000000000003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathdefault mtight" style="margin-right:0.03588em;">v</span></span></span><span style="top:-3.113em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathdefault mtight" style="margin-right:0.01968em;">l</span><span class="mbin mtight">+</span><span class="mord mtight">1</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.247em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span></span><span class="base"><span class="strut" style="height:2.5660100000000003em;vertical-align:-1.516005em;"></span><span class="mord"><span class="mord mathdefault" style="margin-right:0.10903em;">U</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361079999999999em;"><span style="top:-2.5500000000000003em;margin-left:-0.10903em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathdefault mtight" style="margin-right:0.01968em;">l</span><span class="mbin mtight">+</span><span class="mord mtight">1</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.208331em;"><span></span></span></span></span></span></span><span class="mopen">(</span><span class="mord"><span class="mord mathdefault">h</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.151392em;"><span style="top:-2.5500000000000003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathdefault mtight" style="margin-right:0.03588em;">v</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mop op-limits"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.050005em;"><span style="top:-1.808995em;margin-left:0em;"><span class="pstrut" style="height:3.05em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathdefault mtight">u</span><span class="mrel mtight">∈</span><span class="mord mathdefault mtight">n</span><span class="mord mathdefault mtight">e</span><span class="mopen mtight">[</span><span class="mord mathdefault mtight" style="margin-right:0.03588em;">v</span><span class="mclose mtight">]</span></span></span></span><span style="top:-3.0500049999999996em;"><span class="pstrut" style="height:3.05em;"></span><span><span class="mop op-symbol large-op">∑</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:1.516005em;"><span></span></span></span></span></span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord"><span class="mord mathdefault" style="margin-right:0.10903em;">M</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361079999999999em;"><span style="top:-2.5500000000000003em;margin-left:-0.10903em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathdefault mtight" style="margin-right:0.01968em;">l</span><span class="mbin mtight">+</span><span class="mord mtight">1</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.208331em;"><span></span></span></span></span></span></span><span class="mopen">(</span><span class="mord"><span class="mord mathdefault">h</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.8991079999999998em;"><span style="top:-2.4530000000000003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathdefault mtight" style="margin-right:0.03588em;">v</span></span></span><span style="top:-3.113em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathdefault mtight" style="margin-right:0.01968em;">l</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.247em;"><span></span></span></span></span></span></span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord"><span class="mord mathdefault">h</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.8991079999999998em;"><span style="top:-2.4530000000000003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathdefault mtight">u</span></span></span><span style="top:-3.113em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathdefault mtight" style="margin-right:0.01968em;">l</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.247em;"><span></span></span></span></span></span></span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord"><span class="mord mathdefault">x</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.151392em;"><span style="top:-2.5500000000000003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathdefault mtight">u</span><span class="mord mathdefault mtight" style="margin-right:0.03588em;">v</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mclose">)</span><span class="mclose">)</span></span></span></span></span></p>
+<p>其中<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>U</mi></mrow><annotation encoding="application/x-tex">U</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.68333em;vertical-align:0em;"></span><span class="mord mathdefault" style="margin-right:0.10903em;">U</span></span></span></span>和<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>M</mi></mrow><annotation encoding="application/x-tex">M</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.68333em;vertical-align:0em;"></span><span class="mord mathdefault" style="margin-right:0.10903em;">M</span></span></span></span>是我们要学习的函数，<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>x</mi><mrow><mi>u</mi><mi>v</mi></mrow></msub></mrow><annotation encoding="application/x-tex">x_{uv}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.58056em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathdefault">x</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.151392em;"><span style="top:-2.5500000000000003em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathdefault mtight">u</span><span class="mord mathdefault mtight" style="margin-right:0.03588em;">v</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span>为节点<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>u</mi></mrow><annotation encoding="application/x-tex">u</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.43056em;vertical-align:0em;"></span><span class="mord mathdefault">u</span></span></span></span>和<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>v</mi></mrow><annotation encoding="application/x-tex">v</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.43056em;vertical-align:0em;"></span><span class="mord mathdefault" style="margin-right:0.03588em;">v</span></span></span></span>之间边的特征，<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>l</mi></mrow><annotation encoding="application/x-tex">l</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.69444em;vertical-align:0em;"></span><span class="mord mathdefault" style="margin-right:0.01968em;">l</span></span></span></span>表示卷积网络的第<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>l</mi></mrow><annotation encoding="application/x-tex">l</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.69444em;vertical-align:0em;"></span><span class="mord mathdefault" style="margin-right:0.01968em;">l</span></span></span></span>层。</p>
+<p><img src="file:///d:\Learning\Cumputer Science\PRML\PRML-Project\MPNN.png" alt="MPNN"></p>
+<h2 id="数据处理">数据处理</h2>
+<h3 id="工具-1">工具</h3>
+<p>使用rdkit+dgl的方法，使用rdkit的分子表示，并且用dgl中的工具提取特征。</p>
+<h3 id="方法">方法</h3>
+<p>由于一开始数据表示使用的是smiles的字符串，如<code>CCN(CC)C(=S)SSC(=S)N(CC)CC</code></p>
+<p>可以通过如下步骤将其变为模型输入：</p>
+<h4 id="特征提取器">特征提取器</h4>
+<p><code>CanonicalAtomFeaturizer</code>和<code>CanonicalBondFeaturizer</code>分别作为提取分子节点和分子边信息的工具。这在dgl的工具中<code>featurizer</code>中定义。</p>
+<ul>
+<li>原子特征提取为：atom_type_one_hot, atom_degree_one_hot, atom_implicit_valence_one_hot, atom_formal_charge, atom_num_radical_electrons，atom_hybridization_one_hot, atom_is_aromatic, atom_total_num_H_one_hot</li>
+<li>键特征提取为：bond_type_one_hot, bond_is_conjugated, bond_is_in_ring, bond_stereo_one_hot</li>
+</ul>
+<h4 id="特征提取方法">特征提取方法</h4>
+<p>使用dgl中定义的特征提取api，可以直接从smiles字符串转为dglgraph的图</p>
+<p><code>smiles_to_bigraph(m, add_self_loop=False, node_featurizer=atom_featurizer,edge_featurizer=bond_featurizer)</code></p>
+<p>然后可以将其封装为测试集和训练集，再使用torch自带的dataloader组装成batchsize为64（视情况定）的训练集和测试集。</p>
+<h2 id="结果">结果</h2>
+<h3 id="mpnn">MPNN</h3>
+<p>使用MPNN模型进行训练，提取点特征74个，边特征12个，当batch大小设置为64, epoch大小设置为20。虽然epoch较小，对于10个分数据集，训练集ROC-AUC都在接近20个epoch时达到0.85左右，但对测试集进行10折交叉验证后ROC-AUC，较好的数据集在0.6到0.8范围内波动，而剩下的数据集中波动程度很大。</p>
+<p>以下一些数据集的图示结果：</p>
+<ol>
+<li>fold0: <img src="file:///d:\Learning\Cumputer Science\PRML\PRML-Project\fold0.png" alt="fold0"></li>
+<li>fold2: <img src="file:///d:\Learning\Cumputer Science\PRML\PRML-Project\fold2.png" alt="fold2"></li>
+<li>fold3: <img src="file:///d:\Learning\Cumputer Science\PRML\PRML-Project\fold3.png" alt="fold3"></li>
+<li>fold4: <img src="file:///d:\Learning\Cumputer Science\PRML\PRML-Project\fold4.png" alt="fold4"></li>
+<li>fold5: <img src="file:///d:\Learning\Cumputer Science\PRML\PRML-Project\fold5.png" alt="fold5"></li>
+</ol>
+<p>为了继续分析该模型的性能，将其中一个小数据集拿出来以后，将epoch设置到150。由于我们电脑性能的不足，训练了将近两小时才得出结果。epoch增大时，训练集ROC-AUC基本稳步增大，当120之后基本收敛到0.97左右，这说明该分类器在训练集上的表现已经相当好。可是对测试集进行交叉验证以后发现ROC-AUC一直在0.65到0.85范围内波动，且方差较大。推测原因可能有如下几点：</p>
+<ol>
+<li>模型在训练过程中过拟合。</li>
+<li>由于测试集太小，再对其进行十折交叉验证得到的实际测试集就过于小，因此波动较大。</li>
+<li>测试集和训练集内负例都远远多于正例，导致ROC-AUC值不能很好的反映模型的分类能力。</li>
+</ol>
+<p>最终根据其他测试集的结果可以看出当epoch很大时可以确定存在过拟合现象。</p>
+<p>下面是训练过程中表现比较好的数据集中最优情况的记录。</p>
+<p><img src="file:///d:\Learning\Cumputer Science\PRML\PRML-Project\image-20200708182824637.png" alt="image-20200708182824637"></p>
+<p><img src="file:///d:\Learning\Cumputer Science\PRML\PRML-Project\image-20200708202032004.png" alt="image-20200708202032004"></p>
+<p>下表展示了不同数据集最佳情况下模型的表现。</p>
+<table>
+<thead>
+<tr>
+<th>fold</th>
+<th>train roc auc</th>
+<th>train prc auc</th>
+<th>dev roc auc</th>
+<th>dev prc auc</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>0.9981</td>
+<td>0.9195</td>
+<td>0.9818</td>
+<td>0.8335</td>
+</tr>
+<tr>
+<td>1</td>
+<td>0.9350</td>
+<td>0.7171</td>
+<td>0.8712</td>
+<td>0.3110</td>
+</tr>
+<tr>
+<td>2</td>
+<td>0.9985</td>
+<td>0.9675</td>
+<td>0.8535</td>
+<td>0.0210</td>
+</tr>
+<tr>
+<td>3</td>
+<td>0.8711</td>
+<td>0.4535</td>
+<td>0.9718</td>
+<td>0.7314</td>
+</tr>
+<tr>
+<td>4</td>
+<td>0.7999</td>
+<td>0.0891</td>
+<td>0.9613</td>
+<td>0.1549</td>
+</tr>
+<tr>
+<td>5</td>
+<td>0.</td>
+<td>0.</td>
+<td>0</td>
+<td></td>
+</tr>
+<tr>
+<td>6</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>7</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>8</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>9</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p>实验中也试验了SchNet, MGCN模型，但由于效果太差，我们最终采用MPNN模型，根据以上实验结果，其可以较好的进行Property Prediction工作。</p>
+<h2 id="人员分工">人员分工</h2>
+<h3 id="宁晨然-17307130178">宁晨然 17307130178</h3>
+<p>主要负责完成问题分解、搭建模型、资料查询等工作，具体做的有：</p>
+<ul>
+<li>问题初次尝试：查阅DGL框架和Rdkit使用方法，搭建简单GCN模型，完成了csv到dglgraph的完整数据读入和处理流程，确定模型流程。</li>
+<li>问题再尝试：修改了数据处理bug，使用dgl的api进行特征提取，包含每个分子的节点和边信息</li>
+<li>问题过程：跑通几个模型，确定mpnn模型后进行十个fold的测试，得出实验结果</li>
+<li>问题总结：合作完成报告</li>
+</ul>
+<h3 id="杜逸闲-17300240036">杜逸闲 17300240036</h3>
+<p>主要负责阅读文献、搜寻代码示例、撰写报告工作：</p>
+<ul>
+<li>前期了解了问题描述，数据构成以及SMILES语法。</li>
+<li>阅读了关于GNN, GCN, MPNN模型的文献和文章。</li>
+<li>搜寻了本次项目使用的DGL框架样例代码。</li>
+<li>撰写报告的主要内容。</li>
+</ul>
+
+    </body>
+    </html>

@@ -4,7 +4,7 @@
 
 宁晨然 17307130178
 
-[本项目代码](https://github.com/Riki-Du/PRML-Project)已上传至Github, 其中核心代码为main.py, utils.py和configure.py. 
+[本项目代码](https://github.com/Riki-Du/PRML-Project) 已上传至Github, 其中核心代码为main, utils和configure. 
 
 依赖库：
 1. torch & torchvision
