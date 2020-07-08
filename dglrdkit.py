@@ -111,18 +111,18 @@ def collate(sample):
 atom_featurizer = CanonicalAtomFeaturizer()
 bond_featurizer = CanonicalBondFeaturizer()
 
-# def featurize_edges(mol, add_self_loop=False):
-#     feats = []
-#     num_atoms = mol.GetNumAtoms()
-#     atoms = list(mol.GetAtoms())
-#     distance_matrix = Chem.GetDistanceMatrix(mol)
-#     for i in range(num_atoms):
-#         for j in range(num_atoms):
-#             if i != j or add_self_loop:
-#                 feats.append(float(distance_matrix[i, j]))
-#     return {'e': torch.tensor(feats).reshape(-1, 1).float()}
+def featurize_edges(mol, add_self_loop=False):
+    feats = []
+    num_atoms = mol.GetNumAtoms()
+    atoms = list(mol.GetAtoms())
+    distance_matrix = Chem.GetDistanceMatrix(mol)
+    for i in range(num_atoms):
+        for j in range(num_atoms):
+            if i != j or add_self_loop:
+                feats.append(float(distance_matrix[i, j]))
+    return {'e': torch.tensor(feats).reshape(-1, 1).float()}
 
-# edge_featurizer = partial(featurize_edges, add_self_loop=False)
+edge_featurizer = partial(featurize_edges, add_self_loop=False)
 # check feature size
 n_feats = atom_featurizer.feat_size()
 e_feats = bond_featurizer.feat_size()
@@ -132,12 +132,12 @@ print(n_feats, e_feats)
 
 
 m = 'Oc1c(I)cc(Cl)c2cccnc12'
-# m = 'CCO'
-# mol = Chem.MolFromSmiles(m)
-# num_bonds = mol.GetNumBonds()
+m = 'CCO'
+mol = Chem.MolFromSmiles(m)
+num_bonds = mol.GetNumBonds()
 # print(mol,num_bonds)
 smiles_to_bigraph(m, add_self_loop=False, node_featurizer=atom_featurizer,edge_featurizer=bond_featurizer)
-# print(bond_featurizer(mol)['e'].shape)
+print(bond_featurizer(mol)['e'].shape)
 # 二分类任务
 ncls = 2
 

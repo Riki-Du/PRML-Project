@@ -2,7 +2,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import matplotlib.pyplot as plt
-
+from functools import partial
 from torch.utils.data import DataLoader
 
 from dgllife.data import TencentAlchemyDataset
