@@ -5,7 +5,7 @@
 
 MPNN_Alchemy = {
     'random_seed': 0,
-    'batch_size': 64,
+    'batch_size': 16,
     'node_in_feats': 74,
     'node_out_feats': 128,
     'edge_in_feats': 12,
