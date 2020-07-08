@@ -215,7 +215,7 @@ args.update(get_exp_configure(args['exp']))
 args['device'] = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 set_random_seed(args['random_seed'])
 
-train_g, train_y, val_g, val_y = load_data(2)
+train_g, train_y, val_g, val_y = load_data(3)
 train_set = list(zip(train_g, train_y))
 val_set = list(zip(val_g, val_y))
 train_loader = DataLoader(dataset=train_set,
