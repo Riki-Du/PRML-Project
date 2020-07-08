@@ -7,8 +7,8 @@ import random
 import torch
 
 from dgllife.utils import smiles_to_complete_graph,smiles_to_bigraph
-from dgllife.utils import CanonicalAtomFeaturizer
-from dgllife.utils import CanonicalBondFeaturizer
+from dgllife.utils import CanonicalAtomFeaturizer,WeaveAtomFeaturizer
+from dgllife.utils import CanonicalBondFeaturizer,WeaveEdgeFeaturizer
 from sklearn.preprocessing import LabelEncoder    #用于Label编码
 from sklearn.preprocessing import OneHotEncoder     #用于one-hot编码
 
@@ -71,6 +71,8 @@ def read_from_rdkit(num, choice):
 def load_data(num): 
     atom_featurizer = CanonicalAtomFeaturizer()
     bond_featurizer = CanonicalBondFeaturizer()
+    atom_featurizer = WeaveAtomFeaturizer()
+    bond_featurizer = WeaveEdgeFeaturizer()
     trainmols, train_y = read_from_rdkit(num,0)
     testmols, test_y = read_from_rdkit(num,1)
     train_g = [smiles_to_bigraph(m, add_self_loop=False, node_featurizer=atom_featurizer,edge_featurizer=bond_featurizer) for m in trainmols]
