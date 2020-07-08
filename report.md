@@ -144,9 +144,19 @@ Mol = Chem.MolFromSmiles(SMILES)
 Draw.MolToImageFile(Mol, "环已烷.jpg")
 ```
 
-### DGL
+### DGL (Deep Graph Library)
 
-DGL是一款开源的专门面向图神经网络的框架
+DGL是一款开源的专门面向图神经网络的框架，是基于Rdkit和Pytorch或Mxnet框架上的Python框架。因此习惯于Pytorch的用户可以快速上手DGL, 也可以在DGL的框架内用Pytorch自定义很多功能，如提取特征等。
+
+#### DGL-LifeSci
+
+DGL-LifeSci是DGL的一个子包，专门用于将图神经网络应用于化学和生物领域的多种任务中，其基于Pytorch和DGL, 提供如下功能：
+
+1. 各种用于数据处理，模型训练和模型评估的工具，比如内置的各种对于点和边的特征提取器 (Featurizer), 将分子SMILES串直接转化成图的工具、自定义损失函数、自动计算多种机器学习评判标准如mae, roc_auc等。
+2. 可以灵活自定义的模型，如GCN, MGCN, GAT, MPNN, SchNet等。
+3. 已经预训练好的可以直接使用的模型。
+
+本项目中代码依赖RDKit, Pytorch, DGL, DGL-LifeSci包实现。
 
 ## 模型
 
