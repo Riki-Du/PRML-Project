@@ -12,10 +12,11 @@ MPNN_Alchemy = {
     'edge_hidden_feats': 64,
     'n_tasks': 2,
     'lr': 0.001,
-    'patience': 50,
+    'patience': 150,
     'metric_name': 'roc_auc_score',
     'mode': 'higher',
-    'weight_decay': 0
+    'weight_decay': 0,
+    'num_epochs':200
 }
 
 SchNet_Alchemy = {
@@ -26,24 +27,26 @@ SchNet_Alchemy = {
     'classifier_hidden_feats': 64,
     'n_tasks': 2,
     'lr': 0.0001,
-    'patience': 50,
+    'patience': 150,
     'metric_name': 'roc_auc_score',
     'mode': 'higher',
-    'weight_decay': 0
+    'weight_decay': 0,
+    'num_epochs':200
 }
 
 MGCN_Alchemy = {
     'random_seed': 0,
     'batch_size': 64,
-    'feats': 39,
+    'feats': 64,
     'n_layers': 3,
     'classifier_hidden_feats': 64,
     'n_tasks': 2,
     'lr': 0.0001,
-    'patience': 50,
+    'patience': 150,
     'metric_name': 'roc_auc_score',
     'mode': 'higher',
-    'weight_decay': 0
+    'weight_decay': 0,
+    'num_epochs':200
 }
 
 experiment_configures = {

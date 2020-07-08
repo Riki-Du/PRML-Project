@@ -99,19 +99,18 @@ def load_data(num):
     bond_featurizer = CanonicalBondFeaturizer()
     # atom_featurizer = WeaveAtomFeaturizer()
     # bond_featurizer = WeaveEdgeFeaturizer()
-    atom_featurizer = node_featurizer
-    bond_featurizer = edge_featurizer
+    # atom_featurizer = node_featurizer
+    # bond_featurizer = edge_featurizer
     
-    m = 'CCO'
-    mol = Chem.MolFromSmiles(m)
-    num_bonds = mol.GetNumBonds()
-    print(mol,num_bonds)
-    smiles_to_bigraph(m, add_self_loop=False, node_featurizer=atom_featurizer,edge_featurizer=bond_featurizer)
-    print(bond_featurizer(mol)['distance'].shape)
-
-    print(atom_featurizer(mol)['node_type'].shape)
+    # m = 'CCO'
+    # mol = Chem.MolFromSmiles(m)
+    # num_bonds = mol.GetNumBonds()
+    # print(mol,num_bonds)
+    # smiles_to_bigraph(m, add_self_loop=False, node_featurizer=atom_featurizer,edge_featurizer=bond_featurizer)
+    # print(bond_featurizer(mol)['distance'].shape)
+    # print(atom_featurizer(mol)['node_type'].shape)
     trainmols, train_y = read_from_rdkit(num,0)
-    testmols, test_y = read_from_rdkit(num,1)
+    testmols, test_y = read_from_rdkit(num,2)
     train_g = [smiles_to_bigraph(m, add_self_loop=False, node_featurizer=atom_featurizer,edge_featurizer=bond_featurizer) for m in trainmols]
     
     train_y = np.array(train_y, dtype=np.int64)
